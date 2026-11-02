@@ -1,0 +1,31 @@
+{
+  "name": "ai-video-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI Video Studio - API-first video creation",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=@ai-video-studio/backend",
+    "dev:frontend": "npm run dev --workspace=@ai-video-studio/frontend",
+    "build:frontend": "npm run build --workspace=@ai-video-studio/frontend",
+    "typecheck:frontend": "npm run typecheck --workspace=@ai-video-studio/frontend",
+    "build:types": "npm run build --workspace=@ai-video-studio/shared-types",
+    "build:backend": "npm run build --workspace=@ai-video-studio/backend",
+    "clean": "npm run clean --workspaces --if-present",
+    "build": "npm run build:types && npm run build:backend && npm run build:frontend",
+    "typecheck": "npm run build:types && tsc --noEmit -p apps/backend/tsconfig.tests.json && npm run typecheck:frontend",
+    "test": "tsx --test apps/backend/tests/*.test.ts apps/frontend/tests/*.test.ts"
+  },
+  "keywords": [
+    "ai-video",
+    "saas",
+    "remotion",
+    "gemini",
+    "elevenlabs"
+  ],
+  "author": "AI Video Studio",
+  "license": "UNLICENSED"
+}

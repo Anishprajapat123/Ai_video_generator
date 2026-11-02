@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"background":"#faf9f5","secondary":"#5c604c","outline-variant":"#c7c7be","secondary-container":"#dfe2c8","on-tertiary-container":"#8a8c85","surface-container-low":"#f5f4f0","inverse-surface":"#30312e","surface-container":"#efeeea","on-tertiary-fixed":"#1a1c18","primary-container":"#242520","on-background":"#1b1c1a","surface-variant":"#e3e2df","inverse-on-surface":"#f2f1ed","secondary-fixed":"#e1e5cb","on-primary":"#ffffff","surface-container-high":"#e9e8e4","on-error-container":"#93000a","on-surface-variant":"#464741","on-tertiary-fixed-variant":"#454842","on-primary-container":"#8c8c85","primary-fixed-dim":"#c8c7bf","tertiary":"#0d100c","on-surface":"#1b1c1a","primary-fixed":"#e4e3db","surface-tint":"#5e5f59","error":"#ba1a1a","on-secondary-fixed-variant":"#454935","inverse-primary":"#c8c7bf","secondary-fixed-dim":"#c5c9b0","on-primary-fixed":"#1b1c17","on-primary-fixed-variant":"#464741","surface-bright":"#faf9f5","error-container":"#ffdad6","on-secondary-fixed":"#191d0d","on-error":"#ffffff","surface-dim":"#dbdad6","surface":"#faf9f5","tertiary-fixed":"#e2e3db","primary":"#0f100b","tertiary-container":"#232520","surface-container-highest":"#e3e2df","surface-container-lowest":"#ffffff","on-secondary-container":"#616550","on-tertiary":"#ffffff","tertiary-fixed-dim":"#c6c7c0","on-secondary":"#ffffff","outline":"#777870"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"gutter-desktop":"1.5rem","margin-desktop":"2rem","space-sm":"0.5rem","space-md":"1rem","margin-tablet":"1.5rem","margin":"1rem","space-xl":"2rem","space-xs":"0.25rem","space-lg":"1.5rem","gutter":"1rem"},"fontFamily":{"display-lg-mobile":["Geist"],"code-sm":["Space Mono"],"display-lg":["Geist"],"headline-md":["Geist"],"headline-lg":["Geist"],"label-sm":["Geist"],"label-md":["Geist"],"headline-sm":["Geist"],"body-sm":["Geist"],"body-md":["Geist"],"body-lg":["Geist"]},"fontSize":{"display-lg-mobile":["32px",{"lineHeight":"40px","letterSpacing":"-0.02em","fontWeight":"400"}],"code-sm":["12px",{"lineHeight":"16px","letterSpacing":"-0.01em","fontWeight":"400"}],"display-lg":["48px",{"lineHeight":"56px","letterSpacing":"-0.03em","fontWeight":"400"}],"headline-md":["22px",{"lineHeight":"28px","letterSpacing":"-0.015em","fontWeight":"500"}],"headline-lg":["28px",{"lineHeight":"36px","letterSpacing":"-0.02em","fontWeight":"500"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"500"}],"label-md":["13px",{"lineHeight":"18px","letterSpacing":"0.01em","fontWeight":"500"}],"headline-sm":["18px",{"lineHeight":"24px","letterSpacing":"-0.01em","fontWeight":"600"}],"body-sm":["12px",{"lineHeight":"16px","letterSpacing":"0.01em","fontWeight":"400"}],"body-md":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"400"}],"body-lg":["16px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"400"}]}}}};</script></head><body class="bg-background font-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-60 bg-surface-container-lowest border-r border-surface-variant z-50 flex flex-col justify-between select-none"><div class="flex flex-col"><div class="h-14 px-space-md flex items-center border-b border-surface-variant"><span class="font-label-md text-label-md tracking-wider uppercase text-primary font-semibold">AI Video Studio</span></div><div class="pt-space-md px-space-sm"><nav class="flex flex-col gap-1" data-active-classes="bg-primary text-on-primary font-medium rounded"><a class="flex items-center gap-2.5 px-3 py-2 rounded font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="overview" href="#"><span class="material-symbols-outlined text-[18px]">dashboard</span><span>Overview</span></a><a class="flex items-center gap-2.5 px-3 py-2 rounded font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="projects" href="#"><span class="material-symbols-outlined text-[18px]">movie</span><span>Projects</span></a><a class="flex items-center gap-2.5 px-3 py-2 rounded font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="templates" href="#"><span class="material-symbols-outlined text-[18px]">auto_awesome_motion</span><span>Templates</span></a><a class="flex items-center gap-2.5 px-3 py-2 rounded font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="media-library" href="#"><span class="material-symbols-outlined text-[18px]">perm_media</span><span>Media Library</span></a></nav></div></div><div class="flex flex-col border-t border-surface-variant"><div class="py-space-sm px-space-sm"><nav class="flex flex-col gap-1" data-active-classes="bg-primary text-on-primary font-medium rounded"><a class="flex items-center gap-2.5 px-3 py-2 rounded font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="settings" href="#"><span class="material-symbols-outlined text-[18px]">tune</span><span>Settings</span></a><a class="flex items-center gap-2.5 px-3 py-2 rounded font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="help-and-support" href="#"><span class="material-symbols-outlined text-[18px]">help_outline</span><span>Help &amp; Support</span></a></nav></div><div class="p-space-sm border-t border-surface-variant bg-surface-container-low"><div class="flex items-center justify-between px-2 py-1.5 rounded hover:bg-surface-container transition-colors cursor-pointer"><div class="flex items-center gap-2.5 min-w-0"><div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary text-[15px]">person</span></div><div class="flex flex-col min-w-0"><span class="font-label-md text-label-md text-on-surface truncate leading-tight">Anish</span><span class="font-label-sm text-label-sm text-on-surface-variant truncate leading-tight">Personal workspace</span></div></div><span class="material-symbols-outlined text-outline text-[16px]">unfold_more</span></div></div></div></aside><div class="pl-60"><header class="fixed top-0 left-60 right-0 h-14 bg-surface-container-lowest/90 backdrop-blur-md border-b border-surface-variant z-40 flex items-center justify-between px-space-lg"><div class="flex items-center"><div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-surface-variant bg-surface-container-lowest hover:bg-surface-container cursor-pointer transition-colors"><span class="material-symbols-outlined text-on-surface text-[16px]">video_settings</span><span class="font-label-md text-label-md text-on-surface font-medium">Anish’s Studio</span><span class="material-symbols-outlined text-outline text-[16px]">expand_more</span></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-2 px-3 py-1.5 rounded border border-surface-variant bg-surface-container-low w-64 text-on-surface-variant"><span class="material-symbols-outlined text-outline text-[16px]">search</span><span class="font-body-sm text-body-sm text-outline select-none">Search studio assets...</span><span class="ml-auto font-code-sm text-code-sm border border-outline-variant rounded px-1 text-outline">⌘K</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="relative pt-14 bg-background min-h-screen"><div class="flex flex-col w-full">
+<div class="w-full max-w-4xl mx-auto px-space-md lg:px-space-xl py-space-lg lg:py-space-xl">
+<!-- Breadcrumb Hierarchy -->
+<nav aria-label="Breadcrumbs" class="flex items-center gap-2 mb-space-lg">
+<a class="font-body-sm text-body-sm text-secondary hover:text-primary transition-colors flex items-center gap-1" href="#">
+<span>Overview</span>
+</a>
+<span class="font-body-sm text-body-sm text-outline-variant">/</span>
+<span class="font-label-md text-label-md text-primary font-medium tracking-tight">Create video</span>
+</nav>
+<!-- Editorial Header Section -->
+<div class="mb-space-xl max-w-2xl">
+<span class="font-code-sm text-code-sm uppercase tracking-wider text-secondary mb-2 block">Production Workspace · Scene Generator</span>
+<h1 class="font-display-lg text-display-lg text-primary tracking-tight mb-space-sm text-balance">
+        Bring your idea to life.
+      </h1>
+<p class="font-body-lg text-body-lg text-secondary leading-relaxed">
+        Describe your video. Start with a script you can review and refine before assembling scenes and camera trajectories.
+      </p>
+</div>
+<!-- Creation Method Selector Tabs (Strict Minimal Segmented Architecture) -->
+<div class="flex items-center gap-space-lg mb-space-lg">
+<button class="group relative py-2 font-label-md text-label-md text-primary font-medium flex items-center gap-2 focus:outline-none transition-colors" id="tab-prompt" type="button">
+<span class="material-symbols-outlined text-[18px]">edit_note</span>
+<span>Start with a prompt</span>
+<span class="absolute bottom-0 left-0 right-0 h-[2px] bg-primary"></span>
+</button>
+<button class="group relative py-2 font-label-md text-label-md text-secondary hover:text-primary transition-colors flex items-center gap-2 focus:outline-none" id="tab-script" type="button">
+<span class="material-symbols-outlined text-[18px]">article</span>
+<span>Use a script</span>
+</button>
+</div>
+<!-- Main Formulation Stage Card -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg md:p-space-xl">
+<form class="space-y-space-xl" id="create-video-form" onsubmit="event.preventDefault();">
+<!-- Field 1: Project Name -->
+<div class="space-y-2">
+<div class="flex items-center justify-between">
+<label class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-medium" for="project-name">
+              Project Name
+            </label>
+<span class="font-code-sm text-code-sm text-outline">v1.0 · Auto-saved</span>
+</div>
+<div class="relative rounded-lg bg-surface-container-lowest">
+<input class="w-full h-11 px-3.5 bg-surface-container-lowest rounded-lg font-body-md text-body-md text-primary placeholder:text-outline transition-colors focus:bg-surface-container-lowest focus:outline-none" id="project-name" name="projectName" placeholder="e.g. Introduction to Artificial Intelligence" type="text" value="Introduction to Artificial Intelligence"/>
+</div>
+</div>
+<!-- Field 2: Video Idea Textarea & Quiet Starter Chips -->
+<div class="space-y-2.5">
+<div class="flex items-center justify-between">
+<label class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-medium" for="video-idea">
+              Video Idea
+            </label>
+<span class="font-body-sm text-body-sm text-secondary">Be direct about tone &amp; target viewer</span>
+</div>
+<div class="relative rounded-lg bg-surface-container-lowest">
+<textarea class="w-full p-4 rounded-lg bg-surface-container-lowest font-body-md text-body-md text-primary placeholder:text-outline focus:outline-none transition-colors resize-y leading-relaxed min-h-[140px]" id="video-idea" name="videoIdea" placeholder="What should your video explain? Tell us the topic, audience and key points." rows="5"></textarea>
+</div>
+<!-- Starter Chips -->
+<div class="pt-1 flex flex-wrap items-center gap-2">
+<span class="font-label-sm text-label-sm text-outline pr-1">Try starting with:</span>
+<button class="px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-secondary-container text-on-surface-variant hover:text-primary font-body-sm text-body-sm transition-all duration-150 text-left cursor-pointer" onclick="applyPromptStarter('Explain a complex topic: Quantum computing principles broken down for high-school students with physical metaphors and clean pacing.')" type="button">
+              Explain a complex topic
+            </button>
+<button class="px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-secondary-container text-on-surface-variant hover:text-primary font-body-sm text-body-sm transition-all duration-150 text-left cursor-pointer" onclick="applyPromptStarter('Introduce a product: A modern kinetic desk lamp crafted from sand-cast aluminum, emphasizing craftsmanship and tactile controls.')" type="button">
+              Introduce a product
+            </button>
+<button class="px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-secondary-container text-on-surface-variant hover:text-primary font-body-sm text-body-sm transition-all duration-150 text-left cursor-pointer" onclick="applyPromptStarter('Teach a practical skill: Step-by-step masterclass on brewing pour-over coffee with precise water ratios and bloom timing.')" type="button">
+              Teach a practical skill
+            </button>
+</div>
+</div>
+<!-- Video Preferences Matrix -->
+<div class="pt-space-md">
+<div class="flex items-center gap-2 mb-space-md">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-medium">Director's Specifications</span>
+<div class="h-px flex-1 bg-surface-container"></div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<!-- Target Duration -->
+<div class="space-y-1.5">
+<label class="font-body-sm text-body-sm text-secondary block" for="target-duration">
+                Target duration
+              </label>
+<div class="relative">
+<select class="w-full h-10 px-3 pr-8 rounded-lg bg-surface-container-low font-body-md text-body-md text-primary appearance-none cursor-pointer focus:outline-none" id="target-duration" name="duration">
+<option value="30s">30 seconds</option>
+<option selected="" value="60s">60 seconds</option>
+<option value="90s">90 seconds</option>
+<option value="120s">2 minutes</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[18px]">
+                  expand_more
+                </span>
+</div>
+</div>
+<!-- Aspect Ratio -->
+<div class="space-y-1.5">
+<label class="font-body-sm text-body-sm text-secondary block" for="aspect-ratio">
+                Aspect ratio
+              </label>
+<div class="relative">
+<select class="w-full h-10 px-3 pr-8 rounded-lg bg-surface-container-low font-body-md text-body-md text-primary appearance-none cursor-pointer focus:outline-none" id="aspect-ratio" name="aspectRatio">
+<option selected="" value="16:9">16:9 · Landscape</option>
+<option value="9:16">9:16 · Vertical</option>
+<option value="1:1">1:1 · Square</option>
+<option value="4:5">4:5 · Portrait</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[18px]">
+                  expand_more
+                </span>
+</div>
+</div>
+<!-- Language -->
+<div class="space-y-1.5">
+<label class="font-body-sm text-body-sm text-secondary block" for="language-select">
+                Language
+              </label>
+<div class="relative">
+<select class="w-full h-10 px-3 pr-8 rounded-lg bg-surface-container-low font-body-md text-body-md text-primary appearance-none cursor-pointer focus:outline-none" id="language-select" name="language">
+<option selected="" value="en">English (Natural US)</option>
+<option value="en-uk">English (UK Broadcast)</option>
+<option value="fr">French (Parisian)</option>
+<option value="de">German (Standard)</option>
+<option value="ja">Japanese (Conversational)</option>
+<option value="es">Spanish (International)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[18px]">
+                  expand_more
+                </span>
+</div>
+</div>
+<!-- Visual Style -->
+<div class="space-y-1.5">
+<label class="font-body-sm text-body-sm text-secondary block" for="visual-style">
+                Visual style
+              </label>
+<div class="relative">
+<select class="w-full h-10 px-3 pr-8 rounded-lg bg-surface-container-low font-body-md text-body-md text-primary appearance-none cursor-pointer focus:outline-none" id="visual-style" name="visualStyle">
+<option selected="" value="animated-explainer">Animated explainer</option>
+<option value="cinematic-documentary">Cinematic documentary</option>
+<option value="editorial-minimal">Editorial minimal 35mm</option>
+<option value="technical-diagrammatic">Technical diagrammatic</option>
+<option value="clay-tactile">Tactile stop-motion</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[18px]">
+                  expand_more
+                </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Collapsed Advanced Settings Section -->
+<div class="pt-space-xs">
+<button class="flex items-center gap-2 font-label-md text-label-md text-secondary hover:text-primary transition-colors focus:outline-none py-1 group" id="toggle-advanced" onclick="toggleAdvancedSettings()" type="button">
+<span class="material-symbols-outlined text-[18px] text-outline group-hover:text-primary transition-transform duration-200" id="advanced-chevron">
+              chevron_right
+            </span>
+<span>Advanced settings</span>
+<span class="font-code-sm text-code-sm text-outline ml-1">(Camera lock, pacing, seed)</span>
+</button>
+<!-- Hidden Disclosure Box -->
+<div class="hidden mt-space-md p-space-md rounded-lg bg-surface-container-low space-y-space-md" id="advanced-content">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<div class="space-y-1">
+<label class="font-body-sm text-body-sm text-secondary block">Pacing Cadence</label>
+<select class="w-full h-9 px-2.5 rounded bg-surface-container-lowest font-body-sm text-body-sm text-primary focus:outline-none">
+<option>Calm / Contemplative</option>
+<option selected="">Steady Informative (140 wpm)</option>
+<option>High Energy (180 wpm)</option>
+</select>
+</div>
+<div class="space-y-1">
+<label class="font-body-sm text-body-sm text-secondary block">Shot Composition</label>
+<select class="w-full h-9 px-2.5 rounded bg-surface-container-lowest font-body-sm text-body-sm text-primary focus:outline-none">
+<option selected="">Static &amp; Archival Slow Pan</option>
+<option>Dynamic Orbiting</option>
+<option>Tight Macro Perspective</option>
+</select>
+</div>
+<div class="space-y-1">
+<label class="font-body-sm text-body-sm text-secondary block">Deterministic Seed</label>
+<input class="w-full h-9 px-2.5 rounded bg-surface-container-lowest font-code-sm text-code-sm text-primary focus:outline-none" placeholder="Random" type="text"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Row & Architectural Disclosures -->
+<div class="pt-space-md flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md order-2 md:order-1">
+<button class="inline-flex items-center justify-center gap-2.5 px-space-lg h-11 rounded-lg bg-primary-container text-on-primary hover:bg-inverse-surface font-label-md text-label-md transition-colors shadow-sm focus:outline-none cursor-pointer" id="submit-generate-btn" type="submit">
+<span>Generate script</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+<span class="font-body-sm text-body-sm text-secondary max-w-xs leading-normal">
+              You’ll review and approve the script before creating scenes.
+            </span>
+</div>
+<div class="order-1 md:order-2 self-start md:self-center">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-low font-code-sm text-code-sm text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+              Draft Stage
+            </span>
+</div>
+</div>
+</form>
+</div>
+<!-- Quiet Legal / AI Architectural Disclosure Footnote -->
+<div class="mt-space-lg px-space-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-outline">
+<p class="font-body-sm text-body-sm text-on-tertiary-container">
+        Your prompt is sent to the configured AI provider to generate your script.
+      </p>
+<div class="flex items-center gap-space-md font-code-sm text-code-sm text-on-tertiary-container">
+<span>Model: Editorial-v3-Core</span>
+<span>·</span>
+<span>Zero retention mode</span>
+</div>
+</div>
+<!-- Preview Reference Architecture: Visual Stage Sample -->
+<div class="mt-space-xl p-space-lg rounded-xl bg-surface-container-low flex flex-col md:flex-row items-center justify-between gap-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-secondary text-[24px]">movie_edit</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-primary mb-0.5">Need a visual storyboard first?</h2>
+<p class="font-body-sm text-body-sm text-secondary">You can convert your prompt directly into storyboard keyframes without narration if preferred.</p>
+</div>
+</div>
+<button class="whitespace-nowrap px-4 py-2 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-primary font-label-md text-label-md transition-colors cursor-pointer" type="button">
+        Explore visual drafts
+      </button>
+</div>
+</div>
+</div>
+<script>
+  function applyPromptStarter(text) {
+    const textarea = document.getElementById('video-idea');
+    if (textarea) {
+      textarea.value = text;
+      textarea.focus();
+    }
+  }
+
+  function toggleAdvancedSettings() {
+    const content = document.getElementById('advanced-content');
+    const chevron = document.getElementById('advanced-chevron');
+    if (content && chevron) {
+      const isHidden = content.classList.contains('hidden');
+      if (isHidden) {
+        content.classList.remove('hidden');
+        chevron.classList.add('rotate-90');
+      } else {
+        content.classList.add('hidden');
+        chevron.classList.remove('rotate-90');
+      }
+    }
+  }
+
+  // Handle Tab visual states cleanly
+  const tabPrompt = document.getElementById('tab-prompt');
+  const tabScript = document.getElementById('tab-script');
+  
+  if (tabPrompt && tabScript) {
+    tabScript.addEventListener('click', () => {
+      tabScript.className = "group relative py-2 font-label-md text-label-md text-primary font-medium flex items-center gap-2 focus:outline-none transition-colors";
+      tabPrompt.className = "group relative py-2 font-label-md text-label-md text-secondary hover:text-primary transition-colors flex items-center gap-2 focus:outline-none";
+      
+      const indicator = tabPrompt.querySelector('span.absolute');
+      if (indicator) {
+        tabPrompt.removeChild(indicator);
+        const newIndicator = document.createElement('span');
+        newIndicator.className = "absolute bottom-0 left-0 right-0 h-[2px] bg-primary";
+        tabScript.appendChild(newIndicator);
+      }
+    });
+
+    tabPrompt.addEventListener('click', () => {
+      tabPrompt.className = "group relative py-2 font-label-md text-label-md text-primary font-medium flex items-center gap-2 focus:outline-none transition-colors";
+      tabScript.className = "group relative py-2 font-label-md text-label-md text-secondary hover:text-primary transition-colors flex items-center gap-2 focus:outline-none";
+      
+      const indicator = tabScript.querySelector('span.absolute');
+      if (indicator) {
+        tabScript.removeChild(indicator);
+        const newIndicator = document.createElement('span');
+        newIndicator.className = "absolute bottom-0 left-0 right-0 h-[2px] bg-primary";
+        tabPrompt.appendChild(newIndicator);
+      }
+    });
+  }
+</script></main></div></body></html>
