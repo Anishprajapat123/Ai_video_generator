@@ -13,5 +13,5 @@ export function maxWordsFor(seconds: number, language?: string) {
 
 export function pacingInstruction(language?: string) {
   const rate = wordsPerSecond(language);
-  return `Narration is spoken aloud at about ${rate} words per second. Count every narration's words and keep it inside its time budget: words must be at most seconds × ${rate}. Use short sentences, natural punctuation and a small pause margin.`;
+  return `Narration is spoken aloud at about ${rate} words per second. Count every narration's words and keep it inside its time budget: words must be at most seconds × ${rate}. Use short sentences, natural punctuation and a small pause margin. Write for listening: expand unfamiliar abbreviations on first use, write units and symbols as spoken words, and avoid dense lists, markdown or stage directions. Count spelled-out acronym letters as separate spoken words. Preserve names, facts and numerical values. Do not fill time by repeating ideas.`;
 }

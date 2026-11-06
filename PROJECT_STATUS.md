@@ -4,6 +4,12 @@ Updated 5 November 2026.
 
 ## Current product
 
+- New narration uses a speech-only preparation pass: supported markdown markers are removed, list/paragraph pauses are preserved, and common technical acronyms receive English or Hindi letter names. Stored script text and captions remain unchanged. Script prompts now request spoken units, first-use expansions and a pause margin. Existing recordings are retained until explicitly regenerated. Fourteen narration/provider regression tests passed; local English LJ and Hindi Priyamvada fixtures produced non-silent audio fitted to exactly ten seconds without AI requests. These checks do not measure subjective pronunciation quality.
+
+- Browser QA fixture verification passed: move a label outside the canvas, inspect the flagged moment, correct it, save and reload. `scripts/verify-visual-qa.mjs` intercepts every API request in an isolated browser and never changes real projects or invokes AI. Run against a built frontend on port 3101, or set `VISUAL_QA_URL` to another local frontend.
+
+- Local visual QA flags possible overlapping labels, out-of-canvas objects and invalid visibility windows in custom Remotion artwork. Checks sample object, group and camera motion, respect animation speed, and offer timestamp seeking in the live editor. A compact export section checks saved scenes. Warnings are advisory and never invoke AI or block export. Text bounds are estimates; path geometry, heading/caption collisions and artistic quality still require preview. Verified with three fixture regression tests, typecheck and frontend production build.
+
 - Create Video now uses the approved Stitch “Create Video (Refined)” layout: source-mode controls, PDF reference dock, synopsis counter and production parameter cards. Existing model selection, draft restoration, permissions and background generation remain connected. Desktop and 390px layout checks use isolated browser fixtures without inference; the production frontend build passed.
 
 Prompt or text-based PDF → script review → storyboard approval → generate scenes and narration → preview/export MP4.

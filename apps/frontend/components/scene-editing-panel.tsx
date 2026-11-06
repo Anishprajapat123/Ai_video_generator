@@ -8,6 +8,7 @@ import { buildVideoPreview } from '../lib/video-preview';
 import { VideoComposition } from './video-composition';
 import { MotionTrackEditor } from './motion-track-editor';
 import { CollaborationSummary } from './collaboration-summary';
+import { VisualQualityCheck } from './visual-quality-check';
 
 export type SceneDraft = { editing: SceneEditing; narration: string; visualDescription: string };
 type Props = {
@@ -58,6 +59,7 @@ export function SceneEditingPanel({ scene, project, assets, voices, disabled, on
   const color = (label: string, key: 'background' | 'accent' | 'textColor' | 'captionColor' | 'captionBackground') => <label>{label}<input type="color" value={edit[key]} onChange={event => set(key, event.target.value)} /></label>;
   const volume = (label: string, key: 'narrationVolume' | 'originalVolume') => <label>{label}: {Math.round(edit[key] * 100)}%<input type="range" min="0" max="1" step=".05" value={edit[key]} onChange={event => set(key, Number(event.target.value))} /></label>;
   return <div className="scene-inline-editor">
+    {edit.visualMode === 'remotion' && edit.visualPlan && <VisualQualityCheck plan={edit.visualPlan} duration={scene.duration} speed={edit.animationSpeed} onSeek={seconds => { player.current?.pause(); player.current?.seekTo(Math.max(0, Math.min(Math.ceil(scene.duration * project.settings.fps) - 1, Math.floor(seconds * project.settings.fps)))); setTimeMs(Math.round(seconds * 1000)); }} />}
     <CollaborationSummary review={scene.motionGraphics?.find(item => item.type === 'remotion-explainer')?.properties.collaboration} />
     {preview.video ? <Player ref={player} component={VideoComposition} inputProps={{ video: preview.video }} durationInFrames={preview.video.durationInFrames} compositionWidth={preview.video.width} compositionHeight={preview.video.height} fps={preview.video.fps} controls showVolumeControls style={{ width: '100%', aspectRatio: `${preview.video.width}/${preview.video.height}`, maxHeight: 480, background: '#181d18', borderRadius: 10 }} errorFallback={() => <p className="error">Could not play this asset. Reload media.</p>} /> : <p className="media-hint" role="status">{preview.error} Choose Remotion below, or generate a clip.</p>}
     {edit.visualPlan && <label className="media-hint">Animation position: {(timeMs / 1000).toFixed(2)}s<input aria-label="Animation position" type="range" min={0} max={Math.max(0, scene.duration * 1000 - 1000 / project.settings.fps)} step={Math.round(1000 / project.settings.fps)} value={timeMs} onChange={event => { const at = Number(event.target.value); setTimeMs(at); player.current?.seekTo(Math.round(at / 1000 * project.settings.fps)); }} /></label>}

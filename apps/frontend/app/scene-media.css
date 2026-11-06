@@ -53,5 +53,12 @@
 .video-preview-dialog::backdrop { background: #151a15b8; }
 .video-preview-dialog > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .video-preview-dialog h2 { font-size: 20px; overflow-wrap: anywhere; }
+.visual-quality-check, .export-visual-checks { padding: 12px; margin: 12px 0; background: #f5f4f0; border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
+.visual-quality-check summary, .export-visual-checks summary { cursor: pointer; font-size: 13px; font-weight: 500; }
+.visual-quality-check .media-hint { margin-top: 8px; }
+.visual-quality-check ul { padding-left: 20px; margin: 10px 0 0; }
+.visual-quality-check li { font-size: 12px; overflow-wrap: anywhere; margin: 6px 0; }
+.visual-quality-check li .text-button, .visual-quality-check li small { margin-left: 8px; padding: 3px 0; }
+.export-visual-check { margin-top: 12px; font-size: 12px; }
 .video-preview-dialog header p { margin-top: 6px; font-size: 12px; }
 @media (max-width: 700px) { .media-grid, .video-options { grid-template-columns: minmax(0, 1fr); } .media-scene-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .media-card { padding: 16px; } .video-preview-dialog { padding: 16px; } .video-preview-dialog > header { flex-wrap: wrap; } }

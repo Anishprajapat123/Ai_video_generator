@@ -18,6 +18,7 @@ import { sceneEditingSchema, snapshotScene } from './scene-editing.js';
 import type { SceneEditing } from '@ai-video-studio/shared-types';
 import { visualMotionFitsDuration } from '@ai-video-studio/shared-types';
 import { visualPlanSchema } from '../providers/visual-plan.schema.js';
+import { prepareSpokenText } from '../providers/spoken-text.js';
 
 export { mediaDirectory };
 const fitTolerance = 0.05;
@@ -121,8 +122,8 @@ export class MediaService {
     if (scene.updatedAt.toISOString() !== expectedUpdatedAt) throw AppError.conflict('Scene changed; reload before generating');
     if (!scene.narration?.trim()) throw AppError.badRequest('Add narration to the storyboard first');
     const providerId = this.narrationProvider(voiceId);
+    const project = await ProjectModel.findById(scene.projectId);
     if (providerId === 'kitten-local') {
-      const project = await ProjectModel.findById(scene.projectId);
       if (!project || !/^(en([_-].*)?|english)$/i.test(project.settings.language)) throw AppError.badRequest('Local voices support English only. Use an English project or configure a multilingual narration provider.');
     }
     const board = await StoryboardModel.findOne({ _id: scene.storyboardId, status: 'approved' });
@@ -131,7 +132,7 @@ export class MediaService {
     this.generating.add(sceneId);
     try {
       const result = await providerManager.execute({ userId, workspaceId: scene.workspaceId.toString(), projectId: scene.projectId.toString(), sceneId,
-        capability: 'text-to-speech', input: { text: scene.narration, voiceId, targetDurationSeconds: scene.duration }, options: { providerId, allowFallback: false } });
+        capability: 'text-to-speech', input: { text: prepareSpokenText(scene.narration, voiceId === 'piper-pratham' || voiceId === 'piper-priyamvada' ? 'hi' : project?.settings.language), voiceId, targetDurationSeconds: scene.duration }, options: { providerId, allowFallback: false } });
       const { audio, duration } = result.output || {};
       if (!Buffer.isBuffer(audio) || typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0 || duration > 600) throw new AppError(502, 'PROVIDER_INVALID_RESPONSE', 'Voice provider returned invalid narration');
       return await this.upload(sceneId, userId, expectedUpdatedAt, 'audio', audio, 'audio/wav', 'scene-' + scene.sceneNumber + '-narration.wav', duration, 'ai-generated', voiceId);

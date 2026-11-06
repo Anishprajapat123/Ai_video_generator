@@ -10,6 +10,8 @@ import { buildVideoPreview, type VideoPreviewData } from '../lib/video-preview';
 import { VideoPreview } from './video-preview';
 import { VoiceSamplePlayer } from './voice-sample-player';
 import { SceneEditingPanel, type SceneDraft } from './scene-editing-panel';
+import { VisualQualityCheck } from './visual-quality-check';
+import { sceneEditingDefaults } from '@ai-video-studio/shared-types';
 
 type VideoJob = { _id: string; sceneId: string; jobType?: string; providerId?: string; status: 'processing' | 'completed' | 'failed'; progress: number; error?: string; externalJobId?: string };
 type RenderJob = { _id: string; status: 'processing' | 'completed' | 'failed'; progress: number; error?: string; assetId?: string };
@@ -336,6 +338,7 @@ export function SceneMediaEditor({ storyboardId }: { storyboardId: string }) {
     <div aria-live="polite" className="media-feedback">{pending && <p role="status">{pending}…</p>}{notice && <p className="success-message">{notice}</p>}{error && <p className="error" role="alert">{error}</p>}{(needsReload || error) && <button className="text-button" disabled={Boolean(pending)} onClick={() => void reload()}>Reload</button>}</div>
     <section className="media-card video-export" aria-label="Final video export">
       <div className="video-export-heading"><h2>Final video</h2><span className="badge">Remotion</span></div>
+      {data.scenes.some(scene => { const edit = sceneEditingDefaults(scene); return edit.visualMode === 'remotion' && edit.visualPlan; }) && <details className="export-visual-checks"><summary>Check all scene visuals before export</summary>{data.scenes.map(scene => { const edit = sceneEditingDefaults(scene); return edit.visualMode === 'remotion' && edit.visualPlan ? <div key={scene._id} className="export-visual-check"><strong>Scene {scene.sceneNumber} · {scene.title}</strong><VisualQualityCheck plan={edit.visualPlan} duration={scene.duration} speed={edit.animationSpeed} /></div> : null; })}</details>}
       <p className="media-hint">Preview plays this Remotion composition live. Export renders the same scenes, transitions, titles and captions to MP4 with Remotion.</p>
       {mismatch && <p>Narration and video lengths do not match yet. <button className="text-button" disabled={disabled} onClick={() => void fitNarration()}>Fit narration to scene length</button></p>}
       <button className="secondary-button" disabled={disabled || count !== data.scenes.length || !data.scenes.length} onClick={() => void openPreview()}>Preview in Remotion</button>
