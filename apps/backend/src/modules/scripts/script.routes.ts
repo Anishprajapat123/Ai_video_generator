@@ -27,6 +27,9 @@ const generateScriptSchema = z.object({
 });
 
 router.use(requireAuth);
+router.get('/projects/:projectId/content-jobs/latest', async (req, res, next) => {
+  try { return sendSuccess(res, { job: await contentJobService.latest(req.params.projectId, req.user!.userId) }); } catch (error) { next(error); }
+});
 router.post('/projects/:projectId/scripts/jobs', validate(generateScriptSchema), rateLimit('generation', 20, 60 * 60 * 1000, true), async (req, res, next) => {
   try { return sendAccepted(res, { job: await contentJobService.start('script', req.params.projectId, req.user!.userId, z.string().uuid().parse(req.get('X-Generation-Request')), req.body) }); } catch (error) { next(error); }
 });

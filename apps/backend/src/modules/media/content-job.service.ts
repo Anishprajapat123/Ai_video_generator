@@ -10,6 +10,11 @@ type Kind = 'script' | 'visual' | 'narration';
 type Input = { prompt?: string; language?: string; tone?: string; targetAudience?: string; providerId?: string; expectedUpdatedAt?: string; replaceEdits?: boolean; visualProviderId?: string; voiceId?: string };
 const jobType = 'content-generation';
 export class ContentJobService {
+  async latest(projectId: string, userId: string) {
+    await requireProjectAccess(projectId, userId);
+    const job = await GenerationJobModel.findOne({ projectId, jobType }).sort({ createdAt: -1 });
+    return job ? this.get(job.id, userId) : null;
+  }
   async start(kind: Kind, resourceId: string, userId: string, requestId: string, input: Input) {
     const scene = kind === 'script' ? null : await sceneService.getSceneById(resourceId, userId, true);
     const project = await requireProjectAccess(scene ? String(scene.projectId) : resourceId, userId, true);
@@ -65,13 +70,13 @@ export class ContentJobService {
     await requireProjectAccess(String(job.projectId), userId);
     if (job.status === 'processing' && job.expiresAt && job.expiresAt < new Date()) {
       await GenerationJobModel.updateOne({ _id: jobId, status: 'processing' }, { $set: { status: 'failed', error: 'The generation worker stopped. Check saved project content before retrying.', completedAt: new Date() }, $unset: { resourceKey: 1 } });
-      return { _id: job.id, status: 'failed', error: 'The generation worker stopped. Check saved project content before retrying.' };
+      return { _id: job.id, requestId: job.inputReference?.requestId, kind: job.inputReference?.kind, sceneId: job.sceneId?.toString(), status: 'failed', error: 'The generation worker stopped. Check saved project content before retrying.' };
     }
     const id = job.inputReference?.resultId as string | undefined;
     const result = job.status === 'completed' && id ? job.inputReference?.kind === 'script'
       ? { script: await scriptService.getScriptById(id, userId) }
       : { scene: await sceneService.getSceneById(id, userId) } : undefined;
-    return { _id: job.id, status: job.status, error: job.error, result };
+    return { _id: job.id, requestId: job.inputReference?.requestId, kind: job.inputReference?.kind, sceneId: job.sceneId?.toString(), status: job.status, error: job.error, result };
   }
 }
 export const contentJobService = new ContentJobService();

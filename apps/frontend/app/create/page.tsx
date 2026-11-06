@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, ChevronDown, ChevronRight, FileUp, Info, NotebookPen } from 'lucide-react';
 import { ScriptContent, useStudio } from '../../components/studio';
-import { api, type Project, type Script } from '../../lib/api';
+import { api, forgetRecoveredJob, type ContentJob, type Project, type Script } from '../../lib/api';
+import { watchJob } from '../../lib/job-polling';
 import { creationStorage, emptyCreationDraft, persistCreationDraft, restoreCreationDraft, type CreationDraft } from '../../lib/creation-draft';
 import { PdfSourceInput } from '../../components/pdf-source-input';
 
@@ -29,6 +30,7 @@ export default function CreateVideo() {
   const [restoring, setRestoring] = useState(true);
   const [loadedKey, setLoadedKey] = useState('');
   const [intake, setIntake] = useState<'prompt' | 'document'>('prompt');
+  const [recovery, setRecovery] = useState<ContentJob | null>(null);
   const documentDock = useRef<HTMLDivElement>(null);
   const activeRequest = useRef(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -38,12 +40,18 @@ export default function CreateVideo() {
   const providerReady = draft.providerId ? available.some(p => p.id === draft.providerId) : available.some(p => p.id !== 'mock-ai');
   useEffect(() => {
     let active = true;
-    setRestoring(true); setError(''); setProject(null); setScript(null); setDraft(defaults);
+    setRestoring(true); setError(''); setProject(null); setScript(null); setDraft(defaults); setRecovery(null);
     restoreCreationDraft(creationStorage(), storageKey, new URLSearchParams(window.location.search),
       async id => (await api<{ project: Project }>('/projects/' + encodeURIComponent(id))).project).then(async result => {
         if (!active) return;
         setProject(result.project);
         setDraft(result.draft);
+        if (result.project && !result.scriptId) {
+          const { job } = await api<{ job: ContentJob | null }>('/projects/' + result.project._id + '/content-jobs/latest', { signal: AbortSignal.timeout(15000) });
+          if (!active) return;
+          if (job) forgetRecoveredJob(job);
+          if (job?.kind === 'script' && job.status === 'processing') setRecovery(job);
+        }
         if (result.scriptId) {
           const resultScript = await api<{ script: Script }>('/scripts/' + result.scriptId);
           if (active) setScript(resultScript.script);
@@ -52,6 +60,24 @@ export default function CreateVideo() {
     return () => { active = false; };
   }, [storageKey]);
   useEffect(() => {
+    if (!recovery || recovery.status !== 'processing') return;
+    let active = true;
+    const stop = watchJob(async () => {
+      const { job } = await api<{ job: ContentJob }>('/content-jobs/' + recovery._id, { signal: AbortSignal.timeout(15000) });
+      if (!active) return false;
+      if (job.status === 'completed') {
+        const result = job.result as { script?: Script };
+        if (!result?.script) throw new Error('Saved script is not available yet');
+        setScript(result.script); setRecovery(null); setError('');
+        forgetRecoveredJob(job);
+        router.push('/scripts/' + result.script._id); return false;
+      }
+      if (job.status === 'failed' || job.status === 'cancelled') { forgetRecoveredJob(job); setRecovery(null); setError(job.error || 'Script generation failed. Your project is saved; retry when ready.'); return false; }
+      setError(''); return true;
+    }, setError);
+    return () => { active = false; stop(); };
+  }, [recovery?._id, recovery?.status, router]);
+  useEffect(() => {
     if (!restoring && loadedKey === storageKey) {
       persistCreationDraft(creationStorage(), storageKey, draft, project, Boolean(script));
     }
@@ -59,7 +85,7 @@ export default function CreateVideo() {
   function change(key: keyof Draft, value: string) { setDraft(current => ({ ...current, [key]: value })); }
   async function generate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (activeRequest.current || importing) return;
+    if (activeRequest.current || importing || recovery?.status === 'processing') return;
     if (!providerReady) { setError('Select an enabled text provider in Advanced settings before generating.'); return; }
     activeRequest.current = true; setPending(true); setError('');
     try {
@@ -92,7 +118,7 @@ export default function CreateVideo() {
       <span className="create-draft-status"><span className="dot" />{restoring ? 'Opening draft' : pending ? 'Generating script' : 'Draft in this tab'}</span>
     </div>
     <form onSubmit={generate} className="creation-form" aria-busy={pending || restoring}>
-      <fieldset disabled={pending || restoring || !canEdit || Boolean(script)}>
+      <fieldset disabled={pending || restoring || recovery?.status === 'processing' || !canEdit || Boolean(script)}>
         <label className="field-label" htmlFor="project-title">Project name</label><input id="project-title" className="project-name-input" value={draft.title} onChange={e => change('title', e.target.value)} placeholder="Give your video a name" required maxLength={300} />
         <div ref={documentDock}><PdfSourceInput key={storageKey} workspaceId={workspaceId} onImport={(text, name) => setDraft(current => ({ ...current, prompt: text, sourceName: name }))} onBusy={setImporting} /></div>
         {draft.sourceName && <p className="media-hint">Source document: {draft.sourceName}</p>}
@@ -111,6 +137,7 @@ export default function CreateVideo() {
         <div className="generate-row"><button className="primary-button" disabled={!providerReady || importing} type="submit">{pending ? 'Generating script…' : 'Generate script'}<ArrowRight size={19} /></button><p><Info size={18} /><span>You review, refine and approve the script before creating scenes.</span></p></div>
       </fieldset>
       {restoring && <p role="status">Opening your draft…</p>}
+      {recovery?.status === 'processing' && <p role="status">Reconnected to saved script generation. Checking progress without generating again.</p>}
       {!canEdit && <p role="status">You have view-only access to this workspace.</p>}
       {!available.length && <p className="provider-notice">No text provider is enabled. Your draft stays in this browser tab until a provider is configured.</p>}
       {available.length > 0 && !providerReady && <p className="provider-notice">Choose an enabled provider in Advanced settings. The mock provider generates test content only.</p>}

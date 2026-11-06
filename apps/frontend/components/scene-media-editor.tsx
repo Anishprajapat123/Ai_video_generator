@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Film } from 'lucide-react';
-import { api, type MediaAsset, type Project, type Scene, type Storyboard } from '../lib/api';
+import { api, forgetRecoveredJob, type ContentJob, type MediaAsset, type Project, type Scene, type Storyboard } from '../lib/api';
+import { watchJob } from '../lib/job-polling';
 import { mediaUrl, sceneDuration, sceneMedia, preferredNarrationVoice } from '../lib/media';
 import { useStudio } from './studio';
 import { buildVideoPreview, type VideoPreviewData } from '../lib/video-preview';
@@ -46,6 +47,7 @@ export function SceneMediaEditor({ storyboardId }: { storyboardId: string }) {
   const [needsReload, setNeedsReload] = useState(false);
   const [preview, setPreview] = useState<VideoPreviewData | null>(null);
   const [renderJob, setRenderJob] = useState<RenderJob | null>(null);
+  const [contentJob, setContentJob] = useState<ContentJob | null>(null);
   const lock = useRef(false);
   const [editorDirty, setEditorDirty] = useState(false);
   const autoFit = useRef('');
@@ -65,13 +67,16 @@ export function SceneMediaEditor({ storyboardId }: { storyboardId: string }) {
   const load = useCallback(async () => {
     const { storyboard: board } = await api<{ storyboard: Storyboard }>('/storyboards/' + storyboardId);
     const { project } = await api<{ project: Project }>('/projects/' + board.projectId);
+    const content = await api<{ job: ContentJob | null }>('/projects/' + project._id + '/content-jobs/latest', { signal: AbortSignal.timeout(15000) });
     const render = await api<{ job: RenderJob | null }>('/projects/' + project._id + '/video-render');
-    setRenderJob(render.job);
     const batch = await api<{ job: BatchJob | null }>('/projects/' + project._id + '/media-batches/latest');
-    setBatchJob(batch.job?.inputReference.storyboardId === storyboardId ? batch.job : null);
     if (project.storyboardId !== storyboardId || board.status !== 'approved') throw new Error('Approve the current storyboard before adding media.');
     const [list, media, videos] = await Promise.all([api<{ scenes: Scene[] }>('/projects/' + project._id + '/scenes'), api<{ assets: MediaAsset[] }>('/projects/' + project._id + '/media'), api<{ job: VideoJob | null }>('/projects/' + project._id + '/video-jobs/active')]);
     if (list.scenes.some(scene => scene.storyboardId !== storyboardId)) throw new Error('The storyboard changed. Open the current storyboard.');
+    if (content.job) forgetRecoveredJob(content.job);
+    setContentJob(content.job?.kind !== 'script' ? content.job : null);
+    setRenderJob(render.job);
+    setBatchJob(batch.job?.inputReference.storyboardId === storyboardId ? batch.job : null);
     return { board, project, scenes: list.scenes, assets: media.assets, videoJob: videos.job };
   }, [storyboardId]);
   useEffect(() => {
@@ -83,61 +88,68 @@ export function SceneMediaEditor({ storyboardId }: { storyboardId: string }) {
   const videoJobStatus = data?.videoJob?.status;
   useEffect(() => {
     if (batchJob?.status !== 'processing') return;
-    let active = true; let timer: ReturnType<typeof setTimeout>;
+    let active = true;
     const id = batchJob._id;
-    async function poll() {
-      try {
-        const { job } = await api<{ job: BatchJob }>('/media-batches/' + id);
-        if (!active) return;
-        setBatchJob(job);
+    const stop = watchJob(async () => {
+        const { job } = await api<{ job: BatchJob }>('/media-batches/' + id, { signal: AbortSignal.timeout(15000) });
+        if (!active) return false;
         if (job.status !== 'processing') {
           const latest = await load();
-          if (active) { setData(latest); setNotice(job.status === 'completed' ? 'Scenes generated. MP4 export has started.' : 'Batch finished with failures. Completed assets are saved.'); }
-        } else timer = setTimeout(() => void poll(), 2000);
-      } catch { if (active) setError('Cannot check batch progress. Reload media to reconnect; do not start another batch.'); }
-    }
-    timer = setTimeout(() => void poll(), 1000);
-    return () => { active = false; clearTimeout(timer); };
+          if (active) { setData(latest); setError(''); setNotice(job.status === 'completed' ? 'Scenes generated. MP4 export has started.' : 'Batch finished with failures. Completed assets are saved.'); }
+          return false;
+        }
+        setBatchJob(job); setError(''); return true;
+    }, setError);
+    return () => { active = false; stop(); };
   }, [batchJob?._id, batchJob?.status, load]);
   useEffect(() => {
     if (!videoJobId || videoJobStatus !== 'processing') return;
-    let active = true; let timer: ReturnType<typeof setTimeout>;
-    async function poll() {
-      try {
-        const { job } = await api<{ job: VideoJob }>('/video-jobs/' + videoJobId);
-        if (!active) return;
+    let active = true;
+    const stop = watchJob(async () => {
+        const { job } = await api<{ job: VideoJob }>('/video-jobs/' + videoJobId, { signal: AbortSignal.timeout(15000) });
+        if (!active) return false;
         if (job.status === 'completed' || job.status === 'failed') {
           const latest = await load();
-          if (!active) return;
+          if (!active) return false;
           setData(latest);
-          if (job.status === 'completed') setNotice('Scene video generated and saved.');
+          if (job.status === 'completed') { setError(''); setNotice('Scene video generated and saved.'); }
           else setError(job.error || 'Generation failed. Your previous visual is unchanged.');
-          return;
+          return false;
         }
         setData(previous => previous ? { ...previous, videoJob: job } : previous);
-        timer = setTimeout(() => void poll(), 2000);
-      } catch (e) { if (active) setError('Unable to check generation progress. Reload media to reconnect.'); }
-    }
-    timer = setTimeout(() => void poll(), 1000);
-    return () => { active = false; clearTimeout(timer); };
+        setError(''); return true;
+    }, setError);
+    return () => { active = false; stop(); };
   }, [videoJobId, videoJobStatus, load]);
   useEffect(() => {
     if (renderJob?.status !== 'processing' || !data?.project._id) return;
-    let active = true; let timer: ReturnType<typeof setTimeout>;
+    let active = true;
     const projectId = data.project._id;
-    async function poll() {
-      try {
-        const { job } = await api<{ job: RenderJob | null }>('/projects/' + projectId + '/video-render');
-        if (!active) return;
+    const stop = watchJob(async () => {
+        const { job } = await api<{ job: RenderJob | null }>('/projects/' + projectId + '/video-render', { signal: AbortSignal.timeout(15000) });
+        if (!active) return false;
+        if (job?.status === 'completed') { const latest = await load(); if (active) { setData(latest); setError(''); setNotice('Your final video is ready to download.'); } return false; }
         setRenderJob(job);
-        if (job?.status === 'completed') { const latest = await load(); if (active) { setData(latest); setNotice('Your final video is ready to download.'); } }
-        else if (job?.status === 'failed') setError(job.error || 'Video export failed.');
-        else timer = setTimeout(() => void poll(), 2000);
-      } catch { if (active) setError('Unable to check video progress. Reload media to reconnect.'); }
-    }
-    timer = setTimeout(() => void poll(), 1000);
-    return () => { active = false; clearTimeout(timer); };
+        if (!job || job.status === 'failed') { if (job?.error) setError(job.error); return false; }
+        setError(''); return true;
+    }, setError);
+    return () => { active = false; stop(); };
   }, [renderJob?._id, renderJob?.status, data?.project._id, load]);
+  useEffect(() => {
+    if (!contentJob || contentJob.status !== 'processing') return;
+    let active = true;
+    const stop = watchJob(async () => {
+      const { job } = await api<{ job: ContentJob }>('/content-jobs/' + contentJob._id, { signal: AbortSignal.timeout(15000) });
+      if (!active) return false;
+      if (job.status !== 'processing') {
+        const latest = await load();
+        if (active) { setData(latest); setContentJob(job); setError(job.status === 'completed' ? '' : job.error || 'Generation failed. Saved scenes are preserved.'); setNotice(job.status === 'completed' ? 'Recovered generation finished. Saved media is ready.' : 'Retry this scene when ready; completed media is preserved.'); }
+        return false;
+      }
+      setError(''); return true;
+    }, setError);
+    return () => { active = false; stop(); };
+  }, [contentJob?._id, contentJob?.status, load]);
   useEffect(() => registerLeaveGuard(() => !lock.current && (!editorDirty || window.confirm('Discard unsaved scene edits?'))), [registerLeaveGuard, editorDirty]);
   useEffect(() => {
     if (!pending && !editorDirty) return;
@@ -149,7 +161,7 @@ export function SceneMediaEditor({ storyboardId }: { storyboardId: string }) {
   const selected = data?.scenes.find(scene => scene._id === selectedId);
   const member = memberships.find(item => item.workspace._id === data?.board.workspaceId);
   const videoGenerating = videoJobStatus === 'processing';
-  const canEdit = Boolean(member && member.role !== 'viewer' && !needsReload && !videoGenerating && batchJob?.status !== 'processing' && renderJob?.status !== 'processing');
+  const canEdit = Boolean(member && member.role !== 'viewer' && !needsReload && !videoGenerating && contentJob?.status !== 'processing' && batchJob?.status !== 'processing' && renderJob?.status !== 'processing');
   // Existing projects may still carry narration from before exact fitting; align it once when the page opens.
   useEffect(() => {
     if (!data || !canEdit || pending || editorDirty || autoFit.current === data.project._id) return;
@@ -319,6 +331,7 @@ export function SceneMediaEditor({ storyboardId }: { storyboardId: string }) {
       {renderJob?.status === 'processing' && <progress aria-label="MP4 export progress" max={100} value={renderJob.progress} />}
       {batchJob?.error && !data.project.finalVideoAssetId && <p className="error">{batchJob.error}</p>}
     </section>
+    {contentJob?.status === 'processing' && <p role="status">Reconnected to saved {contentJob.kind === 'narration' ? 'narration' : 'visual'} generation. Checking progress without submitting again.</p>}
     <div className="media-grid">
       <aside className="media-card"><nav className="media-scene-list" aria-label="Scene media">{data.scenes.map(scene => {
         const state = sceneMedia(scene, data.assets);

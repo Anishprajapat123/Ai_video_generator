@@ -348,6 +348,9 @@ test('MongoDB: registration, content versions, scene timing, isolation, rollback
   const requestId = randomUUID(); const jobInput = { prompt: 'Explain the water cycle' };
   const submitted = await contentJobService.start('script', jobProject.id, account.user.id, requestId, jobInput);
   assert.equal((await contentJobService.get(submitted._id, account.user.id)).status, 'processing');
+  assert.equal((await contentJobService.latest(jobProject.id, account.user.id))?._id, submitted._id);
+  assert.equal((await contentJobService.latest(jobProject.id, account.user.id))?.kind, 'script');
+  await assert.rejects(contentJobService.latest(jobProject.id, new mongoose.Types.ObjectId().toString()), /permission/);
   assert.equal((await contentJobService.start('script', jobProject.id, account.user.id, requestId, jobInput))._id, submitted._id);
   assert.equal((await contentJobService.start('script', jobProject.id, account.user.id, randomUUID(), jobInput))._id, submitted._id);
   await assert.rejects(contentJobService.start('script', jobProject.id, account.user.id, requestId, { prompt: 'Different request' }), /different settings/);

@@ -54,7 +54,7 @@ export async function api<T>(path: string, options: RequestInit = {}, csrfRetry 
   }
   let response: Response;
   try {
-    response = await fetch('/api/v1' + path, { ...options, headers, credentials: 'include', cache: 'no-store' });
+    response = await fetch('/api/v1' + path, { ...options, ...(!options.signal && (!options.method || options.method === 'GET') ? { signal: AbortSignal.timeout(15000) } : {}), headers, credentials: 'include', cache: 'no-store' });
   } catch { throw new ApiError('Cannot reach the studio API. Check that the backend is running.', 0); }
   let payload;
   try { payload = await response.json(); }
@@ -77,7 +77,20 @@ export async function api<T>(path: string, options: RequestInit = {}, csrfRetry 
   return payload.data as T;
 }
 
-type ContentJob = { _id: string; status: string; error?: string; result?: unknown };
+export type ContentJob = { _id: string; requestId?: string; kind?: 'script' | 'visual' | 'narration'; sceneId?: string; status: string; error?: string; result?: unknown };
+export function forgetRecoveredJob(job: ContentJob) {
+  if (!['completed', 'failed', 'cancelled'].includes(job.status)) return;
+  try {
+    for (let index = localStorage.length - 1; index >= 0; index--) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith('studio:generation:')) continue;
+      try {
+        const saved = JSON.parse(localStorage.getItem(key) || '{}');
+        if (saved.jobId === job._id || (job.requestId && saved.requestId === job.requestId)) localStorage.removeItem(key);
+      } catch { /* Leave unrelated or malformed recovery entries alone. */ }
+    }
+  } catch { /* Recovery works even when browser storage is unavailable. */ }
+}
 const generationRequests = new Map<string, Promise<unknown>>();
 async function generationRequest<T>(path: string, options: RequestInit): Promise<T> {
   const bytes = new TextEncoder().encode(path + '\n' + String(options.body || ''));
@@ -106,9 +119,9 @@ async function generationRequest<T>(path: string, options: RequestInit): Promise
     const deadline = Date.now() + 11 * 60 * 1000;
     while (Date.now() < deadline) {
       let job: ContentJob;
-      try { ({ job } = await api<{ job: ContentJob }>('/content-jobs/' + saved.jobId)); failures = 0; }
+      try { ({ job } = await api<{ job: ContentJob }>('/content-jobs/' + saved.jobId, { signal: AbortSignal.timeout(15000) })); failures = 0; }
       catch (error) {
-        if (!(error instanceof ApiError) || (error.status > 0 && error.status < 500)) { forget(); throw error; }
+        if (!(error instanceof ApiError) || (error.status > 0 && error.status < 500 && ![408, 429].includes(error.status))) { forget(); throw error; }
         if (++failures >= 15) throw new ApiError('Connection lost while checking generation. Your job is saved. Reconnect and repeat the same action to resume checking without a second generation request.', 0);
         await new Promise(resolve => setTimeout(resolve, 2000)); continue;
       }

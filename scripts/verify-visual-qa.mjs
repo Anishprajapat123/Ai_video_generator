@@ -25,7 +25,7 @@ try {
       else if(route==='/projects/fixture')data={project};
       else if(route==='/projects/fixture/scenes')data={scenes:[scene]};
       else if(route==='/projects/fixture/media')data={assets:[]};
-      else if(route.includes('video-render')||route.includes('media-batches')||route.includes('video-jobs'))data={job:null};
+      else if(route.includes('video-render')||route.includes('media-batches')||route.includes('video-jobs')||route.includes('content-jobs'))data={job:null};
       else data={projects:[project]};
       return new Response(JSON.stringify({success:true,data}),{headers:{'Content-Type':'application/json'}});
     };

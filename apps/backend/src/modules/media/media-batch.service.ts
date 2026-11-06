@@ -115,7 +115,7 @@ export class MediaBatchService {
               }
             }
             item[step] = 'ready';
-          } catch (error) { item[step] = 'failed'; item.error = error instanceof AppError ? error.message : 'Generation failed. Check saved media before retrying.'; }
+          } catch (error) { item[step] = 'failed'; item.error = (step === 'narration' ? 'Narration: ' : 'Visual: ') + (error instanceof AppError ? error.message : 'Generation failed. Check saved media before retrying.'); }
           await save();
         }
       }

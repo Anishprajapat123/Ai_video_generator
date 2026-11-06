@@ -1,5 +1,7 @@
 # Repeatable local verification
 
+Refresh/reconnection browser fixture: start a built frontend on port 3101, then run `node scripts/verify-job-recovery.mjs`. To use another local frontend, set `RECOVERY_TEST_URL` to its origin. The fixture intercepts all API calls, blocks writes and verifies refresh recovery, a dropped status response, navigation to the finished script and cleanup of its cached request. It does not create projects, videos or AI requests.
+
 Run routine checks:
 
 ```powershell
