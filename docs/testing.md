@@ -16,7 +16,7 @@ For browser/audio and real local rendering checks as well:
 npm.cmd run verify:full
 ```
 
-Start the studio separately with `npm.cmd run dev` first. Full verification also requires installed local voices and the bundled Remotion browser. It checks native audio playback and decoded signal, Hindi narration, narrow-screen overflow, save/undo/redo/reload persistence, portrait/landscape caption rendering, custom vector MP4 rendering, duration, clip trimming, original sound and a silent held frame. Browser fixtures are cleaned up afterward. Render artifacts remain under `storage/verification` for inspection. These automated checks cannot judge artistic quality or prove hardware audibility.
+Full verification starts isolated API/frontend/proxy services on ports 5101/3101/3102 and uses `ai_video_studio_browser_test`. Leave those ports free; MongoDB must be running. Do not start the studio for this check. It requires installed local voices and the bundled Remotion browser. It checks native audio playback and decoded signal, Hindi narration, narrow-screen overflow, save/undo/redo/reload persistence, camera motion, visual warnings, refresh recovery, portrait/landscape caption rendering, custom vector MP4 rendering, duration, clip trimming, original sound and a silent held frame. External provider keys are disabled in the isolated API. Browser fixtures are cleaned up afterward. Render artifacts remain under `storage/verification` for inspection. These automated checks cannot judge artistic quality or prove hardware audibility.
 
 Both commands stop on the first failure and save a summary to `storage/verification/latest-checks.json`. Neither command calls Gemini or Flow. Live provider checks are deliberately excluded; never add them to routine verification.
 

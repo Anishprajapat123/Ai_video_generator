@@ -16,7 +16,7 @@ const steps = [
   ['Unit and MongoDB integration tests (mocked providers)', ['node', npmCli, 'test']],
   ['Production build', ['node', npmCli, 'run', 'build']],
   ...(full ? [
-    ['Local narration, browser editing and undo/redo', ['node', 'scripts/verify-browser-audio.mjs', '--local-narration', '--hindi', '--editor']],
+    ['Isolated local narration, browser editing, motion, visual QA and recovery', ['node', 'scripts/verify-local-browser.mjs']],
     ['Landscape and portrait caption renders', ['node', 'scripts/verify-caption-render.mjs']],
     ['Custom visuals, MP4 timing, clip trim/hold and audio', ['node', '--import', 'tsx', 'scripts/verify-video-render.ts']],
   ] : []),
