@@ -28,7 +28,7 @@ export class ScriptService {
         ...output, language: params.language || project.settings.language, tone: params.tone || 'educational', targetAudience: params.targetAudience || 'general',
         totalWordCount: output.sections.reduce((sum, s) => sum + s.narration.split(/\s+/u).filter(Boolean).length, 0),
         estimatedDuration: output.sections.reduce((sum, s) => sum + s.estimatedDuration, 0), status: 'draft',
-        providerMetadata: { providerId: response.providerId, model: response.model || 'default' }, createdBy: userId });
+        providerMetadata: { providerId: response.providerId, model: response.model || 'default', ...(response.collaboration ? { collaboration: response.collaboration } : {}) }, createdBy: userId });
       await script.save({ session });
       await ScriptModel.updateMany({ projectId, _id: { $ne: script._id } }, { $set: { status: 'superseded' } }, { session });
       await StoryboardModel.updateMany({ projectId }, { $set: { status: 'superseded' } }, { session });

@@ -1,5 +1,6 @@
 # Node dependencies
 node_modules/
+.tts-venv/
 .pnpm-store/
 npm-debug.log*
 yarn-debug.log*

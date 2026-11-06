@@ -8,16 +8,22 @@
     "apps/*"
   ],
   "scripts": {
+    "flow:login": "node scripts/flow-connector.mjs login",
+    "flow:serve": "node scripts/flow-connector.mjs serve",
+    "flow:status": "node scripts/flow-connector.mjs status",
+    "flow:test": "node scripts/flow-connector.mjs smoke",
+    "dev": "node scripts/start-studio.mjs",
     "dev:backend": "npm run dev --workspace=@ai-video-studio/backend",
     "dev:frontend": "npm run dev --workspace=@ai-video-studio/frontend",
     "build:frontend": "npm run build --workspace=@ai-video-studio/frontend",
     "typecheck:frontend": "npm run typecheck --workspace=@ai-video-studio/frontend",
     "build:types": "npm run build --workspace=@ai-video-studio/shared-types",
     "build:backend": "npm run build --workspace=@ai-video-studio/backend",
-    "clean": "npm run clean --workspaces --if-present",
     "build": "npm run build:types && npm run build:backend && npm run build:frontend",
-    "typecheck": "npm run build:types && tsc --noEmit -p apps/backend/tsconfig.tests.json && npm run typecheck:frontend",
-    "test": "tsx --test apps/backend/tests/*.test.ts apps/frontend/tests/*.test.ts"
+    "typecheck": "npm run build:types && tsc --noEmit -p apps/backend/tsconfig.tests.json && tsc --noEmit -p scripts/tsconfig.render.json && npm run typecheck:frontend",
+    "test": "tsx --test apps/backend/tests/*.test.ts apps/frontend/tests/*.test.ts",
+    "verify": "node scripts/verify-project.mjs",
+    "verify:full": "node scripts/verify-project.mjs --full"
   },
   "keywords": [
     "ai-video",
@@ -27,5 +33,8 @@
     "elevenlabs"
   ],
   "author": "AI Video Studio",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  }
 }

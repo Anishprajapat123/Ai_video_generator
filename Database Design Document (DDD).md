@@ -1,6 +1,8 @@
 # AI Video Studio
 ## Database Design Document (DDD) — Version 1.0
 
+> Implemented scene editing (4 November 2026): scenes now persist structured `editing` settings plus `editHistory` and `editRedo` snapshots. History retains up to ten saved states, including references to prior visual/narration assets. Media cleanup protects current and historical references until their snapshots expire. Edits and undo/redo use revision-checked transactions. This document otherwise retains the planning baseline.
+
 **Document status:** Initial database design  
 **Version:** 1.0  
 **Database:** MongoDB  

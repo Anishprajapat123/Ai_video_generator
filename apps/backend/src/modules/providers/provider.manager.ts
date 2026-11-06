@@ -1,6 +1,13 @@
 import { IAIProvider } from './provider.interface.js';
-import { GeminiProvider } from './adapters/gemini.adapter.js';
+import { configuredGeminiProviders } from './adapters/gemini.adapter.js';
 import { MockAIProvider } from './adapters/mock.adapter.js';
+import { ElevenLabsProvider } from './adapters/elevenlabs.adapter.js';
+import { KittenLocalProvider } from './adapters/kitten-local.adapter.js';
+import { PiperLocalProvider } from './adapters/piper-local.adapter.js';
+import { LtxFreeProvider } from './adapters/ltx-free.adapter.js';
+import { FlowLocalProvider } from './adapters/flow-local.adapter.js';
+import { OpenRouterProvider } from './adapters/openrouter.adapter.js';
+import { CollaborativeProvider } from './adapters/collaborative.adapter.js';
 import { ProviderRequest, ProviderResponse } from '@ai-video-studio/shared-types';
 import { AppError } from '../../common/errors/app-error.js';
 import { env } from '../../config/env.js';
@@ -17,8 +24,9 @@ async function recordUsage(event: UsageEvent) {
 
 export class AIProviderManager {
   private providers = new Map<string, IAIProvider>();
-  constructor(providers: IAIProvider[] = [new GeminiProvider(), ...(env.ENABLE_MOCK_PROVIDER ? [new MockAIProvider()] : [])], private recorder: (event: UsageEvent) => Promise<void> = recordUsage) {
-    for (const provider of providers) this.register(provider);
+  constructor(providers?: IAIProvider[], private recorder: (event: UsageEvent) => Promise<void> = recordUsage) {
+    for (const provider of providers || [...configuredGeminiProviders(), new OpenRouterProvider('openrouter-gemma'), new OpenRouterProvider('openrouter-nemotron'), new ElevenLabsProvider(), new KittenLocalProvider(), new PiperLocalProvider(), new LtxFreeProvider(), new FlowLocalProvider(), ...(env.ENABLE_MOCK_PROVIDER ? [new MockAIProvider()] : [])]) this.register(provider);
+    if (!providers) this.register(new CollaborativeProvider(request => this.execute(request)));
   }
   register(provider: IAIProvider) { this.providers.set(provider.metadata.id, provider); }
   getProvider(id: string) { return this.providers.get(id); }
@@ -48,7 +56,7 @@ export class AIProviderManager {
       return this.executeRecorded(provider, request);
     }
     // Mocks must always be explicitly selected, even in development.
-    const candidates = [...this.providers.values()].filter(p => p.metadata.id !== 'mock-ai' && p.metadata.enabled && p.metadata.capabilities.includes(request.capability))
+    const candidates = [...this.providers.values()].filter(p => p.metadata.id !== 'mock-ai' && p.metadata.enabled && p.metadata.capabilities.includes(request.capability) && (p.metadata.id !== 'studio-team' || ['script-generation', 'visual-plan'].includes(String(request.input.task))))
       .sort((a, b) => a.metadata.priority - b.metadata.priority);
     let lastError: unknown;
     for (const provider of candidates) {

@@ -6,6 +6,8 @@ import { requireAuth } from '../../common/middleware/auth.middleware.js';
 import { rateLimit } from '../../common/middleware/rate-limit.middleware.js';
 
 import { issueCsrfToken } from '../../common/middleware/csrf.middleware.js';
+import { env } from '../../config/env.js';
+import { AppError } from '../../common/errors/app-error.js';
 const router = Router();
 router.get('/csrf', issueCsrfToken);
 
@@ -24,7 +26,10 @@ const loginSchema = z.object({
   }),
 });
 
-router.post('/register', rateLimit('register', 5, 15 * 60 * 1000), validate(registerSchema), authController.register);
+router.post('/register', (req, res, next) => {
+  if (!env.allowRegistration) return next(AppError.forbidden('Registration is closed. Sign in with your existing studio account.'));
+  next();
+}, rateLimit('register', 5, 15 * 60 * 1000), validate(registerSchema), authController.register);
 router.post('/login', rateLimit('login', 10, 15 * 60 * 1000), validate(loginSchema), authController.login);
 router.get('/me', requireAuth, authController.me);
 router.post('/logout', requireAuth, authController.logout);

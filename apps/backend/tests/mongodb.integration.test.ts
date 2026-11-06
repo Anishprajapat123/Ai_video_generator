@@ -15,9 +15,23 @@ import { projectService } from '../src/modules/projects/project.service.js';
 import { scriptService } from '../src/modules/scripts/script.service.js';
 import { storyboardService } from '../src/modules/storyboards/storyboard.service.js';
 import { sceneService } from '../src/modules/scenes/scene.service.js';
+import { mediaService, mediaDirectory } from '../src/modules/media/media.service.js';
+import { MediaAssetModel } from '../src/database/models/MediaAsset.model.js';
+import { unlink, readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { providerManager } from '../src/modules/providers/provider.manager.js';
+import { pcmToWav } from '../src/modules/providers/adapters/elevenlabs.adapter.js';
+import { videoGenerationService } from '../src/modules/media/video-generation.service.js';
+import { GenerationJobModel } from '../src/database/models/GenerationJob.model.js';
 import { MockAIProvider } from '../src/modules/providers/adapters/mock.adapter.js';
 import { ProviderRequest } from '@ai-video-studio/shared-types';
+import { mediaBatchService, requireBatchBudget } from '../src/modules/media/media-batch.service.js';
+import { env } from '../src/config/env.js';
+import { videoRenderService } from '../src/modules/media/video-render.service.js';
+import { sceneEditingDefaults } from '@ai-video-studio/shared-types';
+import { visualPlanFixture } from './fixtures/visual-plan.js';
+import { contentJobService } from '../src/modules/media/content-job.service.js';
+import { randomUUID } from 'node:crypto';
 
 // Explicit opt-in; only a dedicated database ending in _test is accepted.
 test('MongoDB: registration, content versions, scene timing, isolation, rollback and deletion', { skip: !process.env.MONGODB_TEST_URI }, async t => {
@@ -28,8 +42,12 @@ test('MongoDB: registration, content versions, scene timing, isolation, rollback
   const users: string[] = [], workspaces: string[] = [], projects: string[] = [];
   t.after(async () => {
     // Only remove records created by this test, never the whole database.
+    const assets = await MediaAssetModel.find({ projectId: { $in: projects } });
+    for (const asset of assets) await unlink(path.join(mediaDirectory, asset.storageKey)).catch(() => {});
+    await MediaAssetModel.deleteMany({ projectId: { $in: projects } });
     await SessionModel.deleteMany({ userId: { $in: users } });
     await SceneModel.deleteMany({ projectId: { $in: projects } });
+    await GenerationJobModel.deleteMany({ projectId: { $in: projects } });
     await StoryboardModel.deleteMany({ projectId: { $in: projects } });
     await ScriptModel.deleteMany({ projectId: { $in: projects } });
     await ProjectModel.deleteMany({ _id: { $in: projects } });
@@ -39,7 +57,26 @@ test('MongoDB: registration, content versions, scene timing, isolation, rollback
     await mongoose.disconnect();
   });
   const mockProvider = new MockAIProvider();
-  t.mock.method(providerManager, 'execute', (request: ProviderRequest) => mockProvider.execute(request));
+  let failNarration = false;
+  let failVideo = false;
+  const previousProvider = providerManager.getProvider.bind(providerManager);
+  t.mock.method(providerManager, 'getProvider', (id: string) => ['flow-local'].includes(id) ? { isAvailable: async () => true } as ReturnType<typeof previousProvider> : previousProvider(id));
+  const providerExecution = t.mock.method(providerManager, 'execute', async (request: ProviderRequest) => {
+    if (request.input.task === 'visual-plan') return { providerId: 'gemini', status: 'completed' as const, output: visualPlanFixture };
+    if (request.capability === 'video-generation') {
+      if (failVideo) throw new Error('Injected video failure');
+      assert.equal(request.options?.providerId, 'flow-local'); assert.equal(request.options?.maxCredits, 10); assert.equal(request.options?.allowFallback, false);
+      const onExternalJob = request.options?.onExternalJob;
+      assert.equal(typeof onExternalJob, 'function');
+      await (onExternalJob as (id: string) => Promise<void>)('flow-fixture-job');
+      const video = Buffer.alloc(8 * 1024 * 1024 + 1024);
+      Buffer.from('000000186674797069736f6d0000000069736f6d6d703432', 'hex').copy(video);
+      return { providerId: 'flow-local', status: 'completed' as const, output: { video, duration: 12 } };
+    }
+    if (request.capability !== 'text-to-speech') return mockProvider.execute(request);
+    if (failNarration) throw new Error('Injected narration failure');
+    return { providerId: 'elevenlabs', status: 'completed' as const, output: pcmToWav(Buffer.alloc(44100)) };
+  });
   const suffix = new mongoose.Types.ObjectId().toString();
   const account = await authService.register('Integration User', suffix + '@example.test', 'test-password-123456');
   users.push(account.user.id); workspaces.push(account.workspace.id);
@@ -53,12 +90,18 @@ test('MongoDB: registration, content versions, scene timing, isolation, rollback
   const board = await storyboardService.generateStoryboardFromScript(project.id, script.id, account.user.id);
   const scenes = await sceneService.listProjectScenes(project.id, account.user.id);
   assert.equal(board.scenes[0].sceneId, scenes[0].id);
+  assert(scenes.every(scene => scene.duration === 10), 'new scenes use exactly ten seconds');
   await storyboardService.approveStoryboard(board.id, account.user.id);
   await sceneService.updateScene(scenes[0].id, account.user.id, { duration: 18, narration: 'Edited narration' });
   const edited = await sceneService.listProjectScenes(project.id, account.user.id);
   assert.equal(edited[1].timeline.startTime, 18);
   assert.equal((await StoryboardModel.findById(board.id))!.status, 'draft');
-  assert.equal((await ProjectModel.findById(project.id))!.settings.duration, 73);
+  assert.equal((await ProjectModel.findById(project.id))!.settings.duration, 18 + (scenes.length - 1) * 10);
+  await assert.rejects(sceneService.updateScene(scenes[0].id, account.user.id, { title: 'Stale edit' }, scenes[0].updatedAt), /changed in another session/);
+  await assert.rejects(storyboardService.approveStoryboard(board.id, account.user.id, board.get('__v') || 0), /changed in another session/);
+  const reused = await storyboardService.generateStoryboardFromScript(project.id, script.id, account.user.id, true);
+  assert.equal(reused.id, board.id);
+  assert.equal((await SceneModel.findById(scenes[0].id))!.narration, 'Edited narration');
   await assert.rejects(sceneService.getSceneById(scenes[0].id, new mongoose.Types.ObjectId().toString()));
   // Inject a failure after the new board has been written; the real transaction must roll back.
   const boardCount = await StoryboardModel.countDocuments({ projectId: project.id });
@@ -92,6 +135,198 @@ test('MongoDB: registration, content versions, scene timing, isolation, rollback
   await WorkspaceMemberModel.updateOne({ workspaceId: account.workspace.id, userId: account.user.id }, { role: 'owner' });
   const approved = await scriptService.approveScript(draft.id, account.user.id, draft.get('__v') || 0);
   const approvedBoard = await storyboardService.generateStoryboardFromScript(project.id, approved.id, account.user.id);
+  // Media assignment preserves approval, survives reload, and rejects unauthorized/stale writes.
+  await storyboardService.approveStoryboard(approvedBoard.id, account.user.id);
+  const mediaScene = (await sceneService.listProjectScenes(project.id, account.user.id))[0];
+  const expected = mediaScene.updatedAt.toISOString();
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aS1sAAAAASUVORK5CYII=', 'base64');
+  await assert.rejects(mediaService.upload(mediaScene.id, new mongoose.Types.ObjectId().toString(), expected, 'visual', png, 'image/png', 'test.png'));
+  const assigned = await mediaService.upload(mediaScene.id, account.user.id, expected, 'visual', png, 'image/png', 'test.png');
+  assert.equal(assigned.visualAssetIds.length, 1);
+  const assets = await mediaService.list(project.id, account.user.id);
+  assert.equal(assets.length, 1);
+  const asset = await MediaAssetModel.findById(assigned.visualAssetIds[0]);
+  assert.deepEqual(await readFile(path.join(mediaDirectory, asset!.storageKey)), png);
+  await assert.rejects(mediaService.settings(mediaScene.id, account.user.id, { expectedUpdatedAt: expected, remove: 'visual' }), /changed/);
+  const silent = await mediaService.settings(mediaScene.id, account.user.id, { expectedUpdatedAt: assigned.updatedAt.toISOString(), narrationOptional: true, visualFit: 'contain' });
+  assert.equal(silent.narrationOptional, true);
+  assert.equal(silent.visualFit, 'contain');
+  assert.equal((await StoryboardModel.findById(approvedBoard.id))!.status, 'approved');
+  await assert.rejects(mediaService.upload(mediaScene.id, account.user.id, silent.updatedAt.toISOString(), 'visual', Buffer.from('not png'), 'image/png', 'bad.png'));
+  assert.equal((await SceneModel.findById(mediaScene.id))!.visualAssetIds[0].toString(), assigned.visualAssetIds[0].toString());
+  let narrated = await mediaService.generateNarration(mediaScene.id, account.user.id, silent.updatedAt.toISOString(), 'voice123');
+  const narrationAsset = await MediaAssetModel.findById(narrated.voiceAssetId);
+  assert.equal(narrationAsset!.source, 'ai-generated');
+  assert.ok(Math.abs((narrationAsset!.duration || 0) - mediaScene.duration) < 0.01, 'generated narration is fitted to the scene length');
+  // Bulk fitting repairs existing narration files without re-synthesizing the voice.
+  await MediaAssetModel.updateOne({ _id: narrationAsset!._id }, { $set: { duration: 4 } });
+  const fitted = await mediaService.fitNarration(project.id, account.user.id);
+  assert.ok(fitted.fitted >= 1);
+  narrated = (await SceneModel.findById(mediaScene.id))!;
+  const refitted = await MediaAssetModel.findById(narrated.voiceAssetId);
+  assert.ok(Math.abs((refitted!.duration || 0) - mediaScene.duration) < 0.01, 'bulk fit matches the scene length');
+  assert.equal(narrated.narrationOptional, false);
+  failNarration = true;
+  await assert.rejects(mediaService.generateNarration(mediaScene.id, account.user.id, narrated.updatedAt.toISOString(), 'voice123'), /Injected narration failure/);
+  assert.equal((await SceneModel.findById(mediaScene.id))!.voiceAssetId!.toString(), narrated.voiceAssetId!.toString());
+  await assert.rejects(videoGenerationService.start(mediaScene.id, account.user.id, narrated.updatedAt.toISOString(), { providerId: 'flow-local', maxCredits: 0 }), /spending is blocked/);
+  const flowJob = await videoGenerationService.start(mediaScene.id, account.user.id, narrated.updatedAt.toISOString(), { providerId: 'flow-local', maxCredits: 10 });
+  let savedFlowJob = await GenerationJobModel.findById(flowJob.id);
+  for (let attempt = 0; attempt < 100 && savedFlowJob?.status === 'processing'; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 20));
+    savedFlowJob = await GenerationJobModel.findById(flowJob.id);
+  }
+  assert.equal(savedFlowJob?.status, 'completed'); assert.equal(savedFlowJob?.externalJobId, 'flow-fixture-job');
+  assert.equal(savedFlowJob?.inputReference?.maxCredits, 10);
+  let flowScene = (await SceneModel.findById(mediaScene.id))!;
+  assert.equal((await MediaAssetModel.findById(flowScene.visualAssetIds[0]))!.type, 'video');
+  assert.equal(flowScene.voiceAssetId!.toString(), narrated.voiceAssetId!.toString());
+  const clipEdit = { ...sceneEditingDefaults(flowScene.toObject()), clipStart: 2, clipEnd: 8, fitClipToScene: false, clipSpeed: 2, cropX: 25, originalAudioMuted: false, originalVolume: .5 };
+  flowScene = await mediaService.saveEditing(flowScene.id, account.user.id, flowScene.updatedAt.toISOString(), clipEdit, flowScene.narration || '', flowScene.visualDescription || '');
+  assert.equal(flowScene.editing?.clipEnd, 8); assert.equal(flowScene.editing?.clipSpeed, 2);
+  assert.equal(String(flowScene.voiceAssetId), String(narrated.voiceAssetId));
+  await assert.rejects(mediaService.saveEditing(flowScene.id, account.user.id, flowScene.updatedAt.toISOString(), { ...clipEdit, clipEnd: 13 }, flowScene.narration || '', ''), /inside the saved clip/);
+  await assert.rejects(mediaService.saveEditing(flowScene.id, account.user.id, flowScene.updatedAt.toISOString(), { ...clipEdit, clipEnd: 2.001 }, flowScene.narration || '', ''), /at least one frame/);
+  // Batch fixtures exercise actual saved assignments without contacting paid or hosted providers.
+  const batchScenes = await SceneModel.find({ projectId: project.id, storyboardId: approvedBoard.id }).sort({ sceneNumber: 1 });
+  const missing = batchScenes[1];
+  missing.narrationOptional = false; missing.voiceAssetId = null; missing.visualAssetIds = []; missing.motionGraphics = []; missing.narration = 'Batch narration fixture';
+  await missing.save();
+  for (const scene of batchScenes.slice(2)) {
+    scene.narrationOptional = true;
+    scene.motionGraphics = []; scene.visualAssetIds = flowScene.visualAssetIds;
+    await scene.save();
+  }
+  const batchOptions = { storyboardId: approvedBoard.id, voiceId: 'voice123', providerId: 'flow-local' as const, maxCredits: 10 };
+  await assert.rejects(mediaBatchService.start(project.id, new mongoose.Types.ObjectId().toString(), batchOptions));
+  assert.throws(() => requireBatchBudget('flow-local', 2, 10), /20 total/);
+  await assert.rejects(mediaBatchService.start(project.id, account.user.id, { ...batchOptions, maxCredits: 0 }), /total Flow credits|free local/);
+  const oldNarrationProvider = env.NARRATION_PROVIDER;
+  env.NARRATION_PROVIDER = 'kitten-local';
+  try {
+    failNarration = true; failVideo = false;
+    const batch = await mediaBatchService.start(project.id, account.user.id, batchOptions);
+    await assert.rejects(mediaBatchService.start(project.id, account.user.id, batchOptions), /already running/);
+    await assert.rejects(mediaBatchService.get(batch.id, new mongoose.Types.ObjectId().toString()));
+    async function finishBatch(id: string) {
+      for (let attempt = 0; attempt < 300; attempt++) {
+        const result = await mediaBatchService.get(id, account.user.id);
+        if (result!.status !== 'processing') return result!;
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      throw new Error('Test batch did not finish');
+    }
+    const failed = await finishBatch(batch.id);
+    assert.equal(failed.status, 'failed');
+    const afterFailure = (await SceneModel.findById(missing.id))!;
+    assert.equal(afterFailure.visualAssetIds.length, 1, 'visual succeeds even when narration fails');
+    const savedVisual = afterFailure.visualAssetIds[0].toString();
+    failNarration = false; failVideo = true;
+    const retry = await mediaBatchService.start(project.id, account.user.id, { ...batchOptions, maxCredits: 0, retryJobId: batch.id });
+    assert.equal((await finishBatch(retry.id)).status, 'completed');
+    const afterRetry = (await SceneModel.findById(missing.id))!;
+    assert(afterRetry.voiceAssetId, 'retry generates missing narration');
+    assert.equal(afterRetry.visualAssetIds[0].toString(), savedVisual, 'retry preserves successful visual');
+    assert.equal((await SceneModel.findById(mediaScene.id))!.voiceAssetId!.toString(), narrated.voiceAssetId!.toString());
+    assert.equal((await SceneModel.findById(mediaScene.id))!.visualAssetIds[0].toString(), flowScene.visualAssetIds[0].toString());
+    await assert.rejects(mediaBatchService.start(project.id, account.user.id, batchOptions), /No missing media/);
+    // Flow batches require the complete budget and reserve it before one mocked submission.
+    afterRetry.visualAssetIds = []; await afterRetry.save();
+    await assert.rejects(mediaBatchService.start(project.id, account.user.id, { ...batchOptions, maxCredits: 0 }), /10 total Flow credits/);
+    failVideo = false;
+    const flowBatch = await mediaBatchService.start(project.id, account.user.id, { ...batchOptions, providerId: 'flow-local', maxCredits: 10 });
+    const completedFlowBatch = await finishBatch(flowBatch.id);
+    assert.equal(completedFlowBatch.status, 'completed');
+    assert.equal(completedFlowBatch.inputReference!.reservedCredits, 10);
+    assert.equal((await SceneModel.findById(missing.id))!.voiceAssetId!.toString(), afterRetry.voiceAssetId!.toString());
+    const currentForRemotion = (await SceneModel.findById(missing.id))!;
+    currentForRemotion.visualAssetIds = []; currentForRemotion.motionGraphics = []; await currentForRemotion.save();
+    const callsBeforeRemotion = providerExecution.mock.callCount();
+    await assert.rejects(mediaService.generateExplainer(missing.id, new mongoose.Types.ObjectId().toString(), currentForRemotion.updatedAt.toISOString()));
+    const exportStart = t.mock.method(videoRenderService, 'start', async () => ({ _id: 'render-fixture', status: 'processing', progress: 0, error: null, assetId: '' } as Awaited<ReturnType<typeof videoRenderService.start>>));
+    const freeBatch = await mediaBatchService.start(project.id, account.user.id, { ...batchOptions, providerId: 'remotion', maxCredits: 0, autoExport: true });
+    assert.equal((await finishBatch(freeBatch.id)).status, 'completed');
+    assert.equal(exportStart.mock.callCount(), 1, 'one click starts one export after all scenes succeed');
+    exportStart.mock.restore();
+    assert.equal(providerExecution.mock.callCount(), callsBeforeRemotion + 1, 'one Gemini request designs the missing scene');
+    const animated = (await SceneModel.findById(missing.id))!;
+    assert.equal(animated.motionGraphics[0].type, 'remotion-explainer');
+    assert(Array.isArray(animated.motionGraphics[0].properties.points));
+    assert.equal(animated.editing?.visualPlan?.description, visualPlanFixture.description);
+    assert.equal(animated.voiceAssetId!.toString(), currentForRemotion.voiceAssetId!.toString());
+
+    // Saved scene edits survive reload and do not resynthesize media. History restores actual assignments.
+    const originalVoice = String(animated.voiceAssetId);
+    const editor = { ...sceneEditingDefaults(animated.toObject()), background: '#234567', captionSize: 56 };
+    const apply = (current: typeof animated, values = editor, narration = current.narration || '') => mediaService.saveEditing(current.id, account.user.id, current.updatedAt.toISOString(), values, narration, current.visualDescription || '');
+    await ProjectModel.updateOne({ _id: project.id }, { finalVideoAssetId: new mongoose.Types.ObjectId() });
+    let savedEdit = await apply(animated);
+    assert.equal(String(savedEdit.voiceAssetId), originalVoice, 'color and caption edits preserve narration');
+    assert.equal((await SceneModel.findById(animated.id))!.editing!.background, '#234567');
+    assert.equal((await ProjectModel.findById(project.id))!.finalVideoAssetId, null, 'export is invalidated by edits');
+    await assert.rejects(apply(animated), /changed/);
+    await assert.rejects(mediaService.saveEditing(animated.id, new mongoose.Types.ObjectId().toString(), savedEdit.updatedAt.toISOString(), editor, '', ''), /permission/i);
+    await WorkspaceMemberModel.updateOne({ workspaceId: account.workspace.id, userId: account.user.id }, { role: 'viewer' });
+    await assert.rejects(apply(savedEdit));
+    await assert.rejects(mediaService.editingHistory(savedEdit.id, account.user.id, savedEdit.updatedAt.toISOString()));
+    await WorkspaceMemberModel.updateOne({ workspaceId: account.workspace.id, userId: account.user.id }, { role: 'owner' });
+    let restored = await mediaService.editingHistory(savedEdit.id, account.user.id, savedEdit.updatedAt.toISOString());
+    assert.notEqual(restored.editing?.background, '#234567');
+    assert.equal(String(restored.voiceAssetId), originalVoice);
+    restored = await mediaService.editingHistory(restored.id, account.user.id, restored.updatedAt.toISOString(), true);
+    assert.equal(restored.editing?.background, '#234567');
+    savedEdit = await apply(restored, editor, 'Changed narration for this scene.');
+    assert.equal(savedEdit.voiceAssetId, null);
+    assert(await MediaAssetModel.findById(originalVoice), 'history retains the original recording');
+    restored = await mediaService.editingHistory(savedEdit.id, account.user.id, savedEdit.updatedAt.toISOString());
+    assert.equal(String(restored.voiceAssetId), originalVoice);
+    assert.equal(restored.narration, animated.narration);
+    savedEdit = await apply(restored, { ...editor, voiceId: 'another-voice' });
+    assert.equal(savedEdit.voiceAssetId, null, 'voice changes invalidate only narration');
+    restored = await mediaService.editingHistory(savedEdit.id, account.user.id, savedEdit.updatedAt.toISOString());
+    await assert.rejects(mediaService.generateExplainer(restored.id, account.user.id, restored.updatedAt.toISOString()), /Confirm replacing/);
+    restored = await mediaService.generateExplainer(restored.id, account.user.id, restored.updatedAt.toISOString(), true);
+    assert.equal(String(restored.voiceAssetId), originalVoice, 'rebuild preserves narration');
+    assert.equal(restored.editing?.captionSize, 56, 'rebuild preserves caption edits');
+    for (let index = 0; index < 12; index++) restored = await apply(restored, { ...editor, heading: 'Saved version ' + index });
+    assert.equal(restored.editHistory.length, 10);
+    assert.equal(restored.editRedo.length, 0, 'new saves discard redo');
+    assert.equal(providerExecution.mock.callCount(), callsBeforeRemotion + 2, 'only explicit generation and rebuild call Gemini; editing and history do not');
+
+  } finally { env.NARRATION_PROVIDER = oldNarrationProvider; }
+  await WorkspaceMemberModel.updateOne({ workspaceId: account.workspace.id, userId: account.user.id }, { role: 'viewer' });
+  await assert.rejects(mediaService.settings(mediaScene.id, account.user.id, { expectedUpdatedAt: silent.updatedAt.toISOString(), remove: 'visual' }));
+  await WorkspaceMemberModel.updateOne({ workspaceId: account.workspace.id, userId: account.user.id }, { role: 'owner' });
+  // Scenes can be deleted safely: media files, numbering, timeline, board and project totals all follow.
+  const deletable = (await sceneService.listProjectScenes(project.id, account.user.id))[1];
+  const deletableAssets = await MediaAssetModel.find({ _id: { $in: [...deletable.visualAssetIds, ...(deletable.voiceAssetId ? [deletable.voiceAssetId] : [])] } });
+  assert(deletableAssets.length > 0);
+  await sceneService.deleteScene(deletable.id, account.user.id);
+  assert.equal(await SceneModel.findById(deletable.id), null);
+  assert.equal(await MediaAssetModel.countDocuments({ _id: { $in: deletableAssets.map(item => item._id) } }), 0);
+  for (const asset of deletableAssets) assert.equal(await readFile(path.join(mediaDirectory, asset.storageKey)).then(() => true, () => false), false);
+  const kept = await sceneService.listProjectScenes(project.id, account.user.id);
+  assert.deepEqual(kept.map(item => item.sceneNumber), kept.map((_, index) => index + 1));
+  assert.equal((await StoryboardModel.findById(approvedBoard.id))!.status, 'draft');
+  assert.equal((await ProjectModel.findById(project.id))!.settings.duration, kept.reduce((sum, item) => sum + item.duration, 0));
+  for (const [index, item] of kept.entries()) assert.equal(item.timeline.startTime, kept.slice(0, index).reduce((sum, scene) => sum + scene.duration, 0));
+  await assert.rejects(sceneService.deleteScene(deletable.id, account.user.id), /Scene not found/);
+  for (const item of kept.slice(1)) await sceneService.deleteScene(item.id, account.user.id);
+  await assert.rejects(sceneService.deleteScene(kept[0].id, account.user.id), /at least one scene/);
+  assert.equal((await sceneService.listProjectScenes(project.id, account.user.id)).length, 1);
+  // Shared visuals survive scene deletion; removed narration remains available for undo.
+  const lastScene = (await sceneService.listProjectScenes(project.id, account.user.id))[0];
+  for (const id of lastScene.visualAssetIds) assert(await MediaAssetModel.findById(id), 'shared visual remains for the surviving scene');
+  const lastAudio = lastScene.voiceAssetId ? await MediaAssetModel.findById(lastScene.voiceAssetId) : null;
+  if (lastAudio) {
+    await storyboardService.approveStoryboard(approvedBoard.id, account.user.id);
+    const cleared = await mediaService.settings(lastScene.id, account.user.id, { expectedUpdatedAt: lastScene.updatedAt.toISOString(), remove: 'audio' });
+    assert.equal(cleared.voiceAssetId, null);
+    assert(await MediaAssetModel.findById(lastAudio._id));
+    assert.equal(await readFile(path.join(mediaDirectory, lastAudio.storageKey)).then(() => true, () => false), true);
+    const restored = await mediaService.editingHistory(lastScene.id, account.user.id, cleared.updatedAt.toISOString());
+    assert.equal(String(restored.voiceAssetId), String(lastAudio._id));
+  }
   const revised = await scriptService.updateScript(approved.id, account.user.id, { ...edits, title: 'New draft from approved script', expectedRevision: approved.get('__v') || 0 });
   assert.notEqual(revised.id, approved.id);
   assert.equal(revised.version, 3);
@@ -103,4 +338,26 @@ test('MongoDB: registration, content versions, scene timing, isolation, rollback
   await projectService.deleteProject(project.id, account.user.id);
   await assert.rejects(projectService.getProjectById(project.id, account.user.id), /Project not found/);
   await assert.rejects(sceneService.getSceneById(scenes[0].id, account.user.id), /Project not found/);
+  // A disconnected HTTP caller can reconnect without starting the provider twice.
+  const jobProject = await projectService.createProject(account.workspace.id, account.user.id, { title: 'Background job fixture', creationType: 'prompt' });
+  projects.push(jobProject.id);
+  const originalGenerate = scriptService.generateScript.bind(scriptService);
+  let release!: () => void; let generationCalls = 0;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const paused = t.mock.method(scriptService, 'generateScript', async (...args: Parameters<typeof scriptService.generateScript>) => { generationCalls++; await gate; return originalGenerate(...args); });
+  const requestId = randomUUID(); const jobInput = { prompt: 'Explain the water cycle' };
+  const submitted = await contentJobService.start('script', jobProject.id, account.user.id, requestId, jobInput);
+  assert.equal((await contentJobService.get(submitted._id, account.user.id)).status, 'processing');
+  assert.equal((await contentJobService.start('script', jobProject.id, account.user.id, requestId, jobInput))._id, submitted._id);
+  assert.equal((await contentJobService.start('script', jobProject.id, account.user.id, randomUUID(), jobInput))._id, submitted._id);
+  await assert.rejects(contentJobService.start('script', jobProject.id, account.user.id, requestId, { prompt: 'Different request' }), /different settings/);
+  await assert.rejects(contentJobService.get(submitted._id, new mongoose.Types.ObjectId().toString()), /permission/);
+  assert.equal(generationCalls, 1);
+  release();
+  let finished = await contentJobService.get(submitted._id, account.user.id);
+  for (let attempt = 0; attempt < 100 && finished.status === 'processing'; attempt++) { await new Promise(resolve => setTimeout(resolve, 20)); finished = await contentJobService.get(submitted._id, account.user.id); }
+  assert.equal(finished.status, 'completed'); assert(finished.result);
+  assert.equal((await contentJobService.start('script', jobProject.id, account.user.id, requestId, jobInput))._id, submitted._id);
+  assert.equal(generationCalls, 1);
+  paused.mock.restore();
 });

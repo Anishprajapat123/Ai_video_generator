@@ -1,6 +1,6 @@
 import type { Project } from './api';
 
-export type CreationDraft = { title: string; prompt: string; duration: string; aspectRatio: string; language: string; style: string; providerId: string };
+export type CreationDraft = { title: string; prompt: string; duration: string; aspectRatio: string; language: string; style: string; providerId: string; sourceName?: string };
 export const emptyCreationDraft: CreationDraft = { title: '', prompt: '', duration: '60', aspectRatio: '16:9', language: 'en', style: 'animated-explainer', providerId: '' };
 type DraftStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 export function creationStorage(): DraftStorage {

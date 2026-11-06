@@ -13,7 +13,7 @@ export function createApp() {
   // Security & parsing middleware
   app.use(
     cors({
-      origin: env.FRONTEND_URL,
+      origin: env.allowedOrigins,
       credentials: true,
     })
   );

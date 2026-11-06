@@ -11,7 +11,7 @@ async function bootstrap() {
   const app = createApp();
   const server = http.createServer(app);
 
-  server.listen(env.PORT, () => {
+  server.listen(env.PORT, '127.0.0.1', () => {
     logger.info(`🚀 AI Video Studio API server running on http://localhost:${env.PORT}/api/v1`);
     logger.info(`   Environment: ${env.NODE_ENV}`);
     logger.info(`   Health check: http://localhost:${env.PORT}/api/v1/health`);

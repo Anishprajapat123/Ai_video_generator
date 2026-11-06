@@ -61,6 +61,7 @@ const StoryboardSchema = new Schema<IStoryboardDocument>(
   },
   {
     timestamps: true,
+    optimisticConcurrency: true,
   }
 );
 

@@ -1,4 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import type { SceneEditing } from '@ai-video-studio/shared-types';
+
+export type SceneSnapshot = Pick<ISceneDocument, 'title' | 'narration' | 'visualDescription' | 'visualAssetIds' | 'voiceAssetId' | 'narrationOptional' | 'visualFit' | 'motionGraphics' | 'editing'>;
 
 export interface IMotionGraphicElement {
   id: string;
@@ -22,8 +25,13 @@ export interface ISceneDocument extends Document {
   visualDescription?: string;
   visualAssetIds: mongoose.Types.ObjectId[];
   voiceAssetId?: mongoose.Types.ObjectId | null;
+  narrationOptional: boolean;
+  visualFit: 'cover' | 'contain';
   subtitleId?: mongoose.Types.ObjectId | null;
   motionGraphics: IMotionGraphicElement[];
+  editing?: Partial<SceneEditing>;
+  editHistory: SceneSnapshot[];
+  editRedo: SceneSnapshot[];
   timeline: {
     startTime: number;
     endTime: number;
@@ -51,6 +59,14 @@ const MotionGraphicElementSchema = new Schema<IMotionGraphicElement>(
   { _id: false }
 );
 
+const SceneSnapshotSchema = new Schema<SceneSnapshot>({
+  title: String, narration: String, visualDescription: String,
+  visualAssetIds: [{ type: Schema.Types.ObjectId, ref: 'MediaAsset' }],
+  voiceAssetId: { type: Schema.Types.ObjectId, ref: 'MediaAsset', default: null },
+  narrationOptional: Boolean, visualFit: { type: String, enum: ['cover', 'contain'] },
+  motionGraphics: [MotionGraphicElementSchema], editing: Schema.Types.Mixed,
+}, { _id: false });
+
 const SceneSchema = new Schema<ISceneDocument>(
   {
     workspaceId: { type: Schema.Types.ObjectId, ref: 'Workspace', required: true, index: true },
@@ -63,8 +79,13 @@ const SceneSchema = new Schema<ISceneDocument>(
     visualDescription: { type: String },
     visualAssetIds: [{ type: Schema.Types.ObjectId, ref: 'MediaAsset' }],
     voiceAssetId: { type: Schema.Types.ObjectId, ref: 'MediaAsset', default: null },
+    narrationOptional: { type: Boolean, default: false },
+    visualFit: { type: String, enum: ['cover', 'contain'], default: 'cover' },
     subtitleId: { type: Schema.Types.ObjectId, default: null },
     motionGraphics: [MotionGraphicElementSchema],
+    editing: { type: Schema.Types.Mixed, default: {} },
+    editHistory: { type: [SceneSnapshotSchema], default: [] },
+    editRedo: { type: [SceneSnapshotSchema], default: [] },
     timeline: {
       startTime: { type: Number, default: 0 },
       endTime: { type: Number, default: 10 },

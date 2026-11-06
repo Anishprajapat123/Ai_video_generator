@@ -1,10 +1,11 @@
 'use client';
+import { CollaborationSummary } from './collaboration-summary';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check, RotateCw } from 'lucide-react';
-import { api, type Project, type Script } from '../lib/api';
+import { api, type Project, type Script, type Storyboard } from '../lib/api';
 import { useStudio } from './studio';
 import { allowLeavingEditor } from '../lib/leave-guard';
 
@@ -19,7 +20,7 @@ export function ScriptReview({ scriptId }: { scriptId: string }) {
   const [project, setProject] = useState<Project | null>(null);
   const [selected, setSelected] = useState('');
   const [loading, setLoading] = useState(true);
-  const [pending, setPending] = useState<'save' | 'approve' | null>(null);
+  const [pending, setPending] = useState<'save' | 'approve' | 'storyboard' | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const busy = useRef(false);
@@ -92,10 +93,27 @@ export function ScriptReview({ scriptId }: { scriptId: string }) {
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to save your script.'); }
     finally { busy.current = false; setPending(null); }
   }
+  async function openStoryboard() {
+    if (busy.current || !project || !saved || dirty || saved.status !== 'approved' || !current) return;
+    busy.current = true; setPending('storyboard'); setError('');
+    try {
+      const latest = (await api<{ project: Project }>('/projects/' + project._id)).project;
+      if (latest.scriptId !== saved._id) throw new Error('The project script has changed. Reload before continuing.');
+      if (latest.storyboardId) { router.push('/storyboards/' + latest.storyboardId); return; }
+      if (!canEdit) throw new Error('You need editing access to create a storyboard.');
+      const result = await api<{ storyboard: Storyboard }>(`/projects/${project._id}/storyboards/generate`, {
+        method: 'POST', body: JSON.stringify({ scriptId: saved._id, reuseExisting: true }),
+      });
+      void refreshProjects().catch(() => {});
+      router.push('/storyboards/' + result.storyboard._id);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Unable to open the storyboard.'); }
+    finally { busy.current = false; setPending(null); }
+  }
   if (loading) return <div className="state-panel" role="status">Opening your script…</div>;
   if (!draft || !project) return <div className="state-panel"><p className="error" role="alert">{error || 'Script not found.'}</p><Link className="secondary-button" href="/">Back to overview</Link></div>;
   const approved = saved?.status === 'approved' && !dirty;
   return <div className="script-review">
+    <CollaborationSummary review={saved?.providerMetadata?.collaboration} />
     <nav className="breadcrumbs" aria-label="Breadcrumb"><Link href="/">Overview</Link><span>/</span><span>{project.title}</span><span>/</span><span aria-current="page">Script review</span></nav>
     <header className="review-header"><div><div className="review-title"><h1>Shape your story.</h1><span className="badge"><span className="dot" />{approved ? 'Approved' : saved?.status === 'superseded' ? 'Previous version' : 'Draft'}</span></div><p>Review your narration before bringing each scene to life.</p></div>
       {canEdit && <Link className="secondary-button regenerate-button" href={`/create?project=${project._id}&regenerate=1`}><RotateCw size={17} />Regenerate script</Link>}
@@ -113,5 +131,6 @@ export function ScriptReview({ scriptId }: { scriptId: string }) {
     </div>
     <footer className="review-footer"><div className="review-totals"><strong>{totalWords} words</strong><span>·</span><span>Estimated total duration: <strong>{Math.round(duration)}s</strong></span></div><div className="review-footer-actions"><div className="review-buttons"><button className="secondary-button" disabled={!canEdit || !dirty || Boolean(pending)} onClick={() => submit('save')}>{pending === 'save' ? 'Saving…' : 'Save draft'}</button><button className="primary-button" disabled={!canEdit || approved || Boolean(pending)} onClick={() => submit('approve')}>{approved ? <Check size={17} /> : null}{pending === 'approve' ? 'Approving…' : approved ? 'Script approved' : 'Approve script'}{!approved && <ArrowRight size={17} />}</button></div><p>Approve this script to continue to storyboard creation.</p></div></footer>
     <div className="review-feedback" aria-live="polite">{notice && <p className="success-message" role="status"><Check size={16} />{notice}</p>}{dirty && <p className="muted">Unsaved changes{saved?.status === 'approved' ? ' · Saving creates a new draft version.' : ''}</p>}{error && <p className="error" role="alert">{error}</p>}</div>
+    {approved && current && <div className="storyboard-next-step"><p>Your script is approved. Continue to plan and review its scenes.</p><button className="primary-button" disabled={Boolean(pending) || (!canEdit && !project.storyboardId)} onClick={openStoryboard}>{pending === 'storyboard' ? 'Opening storyboard…' : project.storyboardId ? 'Review storyboard' : 'Create storyboard'}<ArrowRight size={17} /></button></div>}
   </div>;
 }

@@ -1,6 +1,8 @@
 # AI Video Studio
 ## Backend API Specification — Version 1.0
 
+> Implemented scene editing (4 November 2026): `PATCH /api/v1/scenes/:sceneId/editor` accepts `expectedUpdatedAt`, structured `editing`, `narration` and `visualDescription`. `POST /api/v1/scenes/:sceneId/editor/undo` and `/redo` accept `expectedUpdatedAt`. All require current approved scenes and workspace write access. Saving invalidates the final export; narration text/voice changes invalidate only that scene’s recording. Remotion rebuild accepts explicit `replaceEdits` confirmation. See `docs/remotion-explainers.md` for controls and current behavior; this document otherwise retains the planning baseline.
+
 **Document status:** Initial API specification  
 **Version:** 1.0  
 **Architecture:** API-first modular monolith  

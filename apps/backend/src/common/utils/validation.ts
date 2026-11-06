@@ -10,6 +10,7 @@ export const projectSettingsSchema = z.object({
   subtitlesEnabled: z.boolean().optional(), musicEnabled: z.boolean().optional(),
 }).strict();
 export const sceneUpdateSchema = z.object({
+  expectedUpdatedAt: z.string().datetime().optional(),
   title: z.string().trim().min(1).max(300).optional(),
   narration: z.string().max(10000).optional(),
   visualDescription: z.string().max(5000).optional(),
@@ -19,4 +20,4 @@ export const sceneUpdateSchema = z.object({
     properties: z.object({ text: z.string().max(1000) }).strict(),
     animation: z.object({ type: z.enum(['fade', 'slide', 'none']), duration: z.number().finite().min(0).max(600), delay: z.number().finite().min(0).max(600).optional() }).strict().optional(),
   }).strict()).max(100).optional(),
-}).strict().refine(v => Object.keys(v).length > 0, 'Provide at least one scene change');
+}).strict().refine(v => Object.keys(v).some(key => key !== 'expectedUpdatedAt'), 'Provide at least one scene change');

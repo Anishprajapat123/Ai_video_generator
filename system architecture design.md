@@ -1,7 +1,11 @@
 # AI Video Studio
 ## System Architecture Document (SAD) — Version 1.1
 
+> Current implementation note (4 November 2026): the API-only statements below describe the original target architecture. The approved development setup now defaults to local Remotion animated explainers and local Piper narration, with Gemini for scripts and optional Flow/LTX footage. New scenes default to ten seconds. This intentionally differs from the original no-local-model baseline. See `docs/remotion-explainers.md` and `PROJECT_STATUS.md` for implemented behavior; planned SaaS modules below are not all implemented.
+
 **Document status:** Architecture baseline  
+> Generative visual update (5 November 2026): new scene artwork is designed by Gemini as a validated vector scene graph. Remotion renders custom paths, shapes, labels and timed motion locally. Artwork generation uses Gemini quota; saved-scene editing, preview and export do not regenerate it. Legacy solar and generic scenes remain editable. See `docs/remotion-explainers.md` for current behavior.
+
 **Version:** 1.1  
 **Architecture approach:** API-first, provider-independent, cloud-ready  
 **Initial development environment:** Windows 11  

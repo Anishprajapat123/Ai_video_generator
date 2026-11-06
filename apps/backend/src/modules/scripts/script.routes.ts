@@ -7,6 +7,8 @@ import { rateLimit } from '../../common/middleware/rate-limit.middleware.js';
 import { scriptOutputSchema } from '../providers/output.schemas.js';
 
 import { objectId } from '../../common/utils/validation.js';
+import { contentJobService } from '../media/content-job.service.js';
+import { sendAccepted, sendSuccess } from '../../common/utils/response.js';
 const router = Router();
 router.param("projectId", (_req, _res, next, value) => { try { objectId.parse(value); next(); } catch (e) { next(e); } });
 router.param("scriptId", (_req, _res, next, value) => { try { objectId.parse(value); next(); } catch (e) { next(e); } });
@@ -25,6 +27,12 @@ const generateScriptSchema = z.object({
 });
 
 router.use(requireAuth);
+router.post('/projects/:projectId/scripts/jobs', validate(generateScriptSchema), rateLimit('generation', 20, 60 * 60 * 1000, true), async (req, res, next) => {
+  try { return sendAccepted(res, { job: await contentJobService.start('script', req.params.projectId, req.user!.userId, z.string().uuid().parse(req.get('X-Generation-Request')), req.body) }); } catch (error) { next(error); }
+});
+router.get('/content-jobs/:jobId', async (req, res, next) => {
+  try { return sendSuccess(res, { job: await contentJobService.get(objectId.parse(req.params.jobId), req.user!.userId) }); } catch (error) { next(error); }
+});
 
 router.post('/projects/:projectId/scripts/generate', validate(generateScriptSchema), rateLimit('generation', 20, 60 * 60 * 1000, true), scriptController.generate);
 router.get('/scripts/:scriptId', scriptController.get);

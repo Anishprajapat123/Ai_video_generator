@@ -26,8 +26,19 @@ export class SceneController {
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const { sceneId } = req.params;
-      const scene = await sceneService.updateScene(sceneId, req.user!.userId, req.body);
+      const { expectedUpdatedAt, ...updates } = req.body;
+      const scene = await sceneService.updateScene(sceneId, req.user!.userId, updates, expectedUpdatedAt ? new Date(expectedUpdatedAt) : undefined);
       return sendSuccess(res, { scene });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async delete(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { sceneId } = req.params;
+      await sceneService.deleteScene(sceneId, req.user!.userId);
+      return sendSuccess(res, { message: 'Scene deleted successfully' });
     } catch (err) {
       next(err);
     }

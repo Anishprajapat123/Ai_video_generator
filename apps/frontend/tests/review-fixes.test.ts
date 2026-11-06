@@ -87,3 +87,14 @@ test('API retries only pre-handler CSRF failures and does not retry other denied
   await assert.rejects(api('/one', { method: 'PATCH' }), (error: unknown) => error instanceof ApiError && error.code === 'RESOURCE_ACCESS_DENIED');
   assert.equal(deniedWrites, 1);
 });
+test('a non-JSON proxy timeout explains uncertain generation and never retries it', async t => {
+  let writes = 0;
+  t.mock.method(globalThis, 'fetch', async (url: string) => {
+    if (url.endsWith('/auth/csrf')) return Response.json({ success: true, data: { csrfToken: 'token' } });
+    writes++;
+    return new Response('Gateway timeout', { status: 504 });
+  });
+  await assert.rejects(api('/projects/example/scripts/generate', { method: 'POST' }),
+    (error: unknown) => error instanceof ApiError && error.status === 504 && error.message.includes('saved result'));
+  assert.equal(writes, 1);
+});

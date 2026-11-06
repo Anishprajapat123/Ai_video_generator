@@ -8,7 +8,7 @@ const schema = new Schema({
   providerId: { type: String, required: true },
   capability: { type: String, required: true },
   model: String,
-  usage: { inputTokens: Number, outputTokens: Number, characters: Number, durationSeconds: Number },
+  usage: { inputTokens: Number, outputTokens: Number, characters: Number, durationSeconds: Number, credits: Number },
   estimatedCost: Number,
   status: { type: String, enum: ['success', 'failed'], required: true },
 }, { collection: 'usage_records', timestamps: { createdAt: true, updatedAt: false } });

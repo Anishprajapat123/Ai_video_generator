@@ -5,9 +5,16 @@ import { SceneModel } from '../../database/models/Scene.model.js';
 import { ProjectModel } from '../../database/models/Project.model.js';
 import { requireProjectAccess } from '../../common/utils/access.js';
 import { AppError } from '../../common/errors/app-error.js';
+import { wordsPerSecond } from '../providers/pacing.js';
+
+// Estimate how long the narration actually takes to speak so the scene video is never shorter than its voice.
+function spokenSeconds(text: string, language?: string) {
+  const words = text.split(/\s+/u).filter(Boolean).length;
+  return words / wordsPerSecond(language);
+}
 
 export class StoryboardService {
-  async generateStoryboardFromScript(projectId: string, scriptId: string, userId: string) {
+  async generateStoryboardFromScript(projectId: string, scriptId: string, userId: string, reuseExisting = false) {
     await requireProjectAccess(projectId, userId, true);
     return mongoose.connection.transaction(async session => {
       const project = await ProjectModel.findOne({ _id: projectId, deletedAt: null }).session(session);
@@ -17,12 +24,18 @@ export class StoryboardService {
       if (script.status !== 'approved') throw AppError.conflict('Approve the script before creating a storyboard');
       if (project.scriptId?.toString() !== scriptId) throw AppError.conflict('Only the current script can create a storyboard');
       if (!script.sections.length) throw AppError.badRequest('Script has no sections');
+      if (reuseExisting && project.storyboardId) {
+        const existing = await StoryboardModel.findOne({ _id: project.storyboardId, scriptId, status: { $ne: 'superseded' } }).session(session);
+        if (existing) return existing;
+      }
       const latest = await StoryboardModel.findOne({ projectId }).sort({ version: -1 }).session(session);
       const sceneIds = script.sections.map(() => new mongoose.Types.ObjectId());
       const summaries = script.sections.map((section, index) => ({
         sceneId: sceneIds[index].toString(), title: section.heading,
         description: section.visualSuggestion || 'Visual representation of ' + section.heading,
-        duration: section.estimatedDuration, order: index + 1, visualType: 'animation' as const, transition: 'fade',
+        // New scenes share a fixed ten-second timeline; narration is fitted to that timeline.
+        duration: 10,
+        order: index + 1, visualType: 'animation' as const, transition: 'fade',
       }));
       const totalDuration = summaries.reduce((sum, scene) => sum + scene.duration, 0);
       const storyboard = new StoryboardModel({ workspaceId: project.workspaceId, projectId, scriptId,
@@ -35,7 +48,7 @@ export class StoryboardService {
         return { _id: sceneIds[index], workspaceId: project.workspaceId, projectId, storyboardId: storyboard._id,
           sceneNumber: index + 1, title: scene.title, duration: scene.duration, narration: script.sections[index].narration,
           visualDescription: scene.description, visualAssetIds: [],
-          motionGraphics: [{ id: 'title-' + scene.sceneId, type: 'kinetic-title', properties: { text: scene.title } }],
+          motionGraphics: [],
           timeline: { startTime: start, endTime: startTime }, transition: { type: 'fade', duration: Math.min(1, scene.duration) }, status: 'draft' };
       }), { session });
       // Keep old scenes and boards as recoverable content; list endpoints use the active board.
@@ -54,12 +67,13 @@ export class StoryboardService {
     await requireProjectAccess(storyboard.projectId.toString(), userId, write);
     return storyboard;
   }
-  async approveStoryboard(storyboardId: string, userId: string) {
+  async approveStoryboard(storyboardId: string, userId: string, expectedRevision?: number) {
     const board = await this.getStoryboard(storyboardId, userId, true);
     return mongoose.connection.transaction(async session => {
       const current = await StoryboardModel.findById(storyboardId).session(session);
       const project = await ProjectModel.findOne({ _id: board.projectId, deletedAt: null }).session(session);
       if (!current || !project || project.storyboardId?.toString() !== storyboardId || current.status === 'superseded') throw AppError.conflict('Only the current storyboard can be approved');
+      if (expectedRevision !== undefined && (current.get('__v') || 0) !== expectedRevision) throw AppError.conflict('Storyboard changed in another session; reload before approving');
       current.status = 'approved';
       await current.save({ session });
       project.status = 'ready';

@@ -1,0 +1,14 @@
+.project-card { position: relative; }
+.project-card-open { display: block; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; color: inherit; cursor: pointer; }
+.project-card-actions { position: absolute; top: 10px; right: 10px; z-index: 2; display: flex; gap: 4px; padding: 3px; border-radius: 8px; background: #ffffffd9; box-shadow: 0 1px 3px #24252020; backdrop-filter: blur(3px); }
+.project-card-actions .icon-button { width: 30px; height: 30px; color: #33352d; background: transparent; }
+.project-card-actions .icon-button:hover { background: #eeefe6; }
+.icon-button.danger, .text-button.danger { color: #a33d2e; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 20px; background: #151a15b8; }
+.modal-card { width: min(520px, 100%); padding: 24px; border-radius: 14px; background: #fff; box-shadow: 0 20px 60px #151a1540; }
+.modal-card form { display: grid; gap: 14px; margin-top: 18px; }
+.modal-card label { display: grid; gap: 6px; font-size: 13px; font-weight: 550; }
+.modal-card input, .modal-card textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; font-size: 13px; resize: vertical; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.scene-save-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.media-remove-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }

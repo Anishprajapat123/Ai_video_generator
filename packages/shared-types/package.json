@@ -4,8 +4,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "clean": "rimraf dist"
+    "build": "tsc"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

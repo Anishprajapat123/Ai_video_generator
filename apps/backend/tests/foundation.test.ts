@@ -24,7 +24,7 @@ import { AppError } from '../src/common/errors/app-error.js';
 import { hashToken } from '../src/modules/auth/session.service.js';
 import { parseEnvironment } from '../src/config/environment.js';
 import { env } from '../src/config/env.js';
-import { GeminiProvider } from '../src/modules/providers/adapters/gemini.adapter.js';
+import { GeminiProvider, configuredGeminiProviders } from '../src/modules/providers/adapters/gemini.adapter.js';
 import { projectSettingsSchema, sceneUpdateSchema } from '../src/common/utils/validation.js';
 import { scriptOutputSchema } from '../src/modules/providers/output.schemas.js';
 
@@ -115,6 +115,9 @@ test('production environment rejects mocks, insecure frontend origins and invali
   assert.throws(() => parseEnvironment({ PORT: 'garbage' }));
   assert.throws(() => parseEnvironment({ FRONTEND_URL: 'https://studio.example/' }));
   assert.equal(parseEnvironment({ NODE_ENV: 'production', FRONTEND_URL: 'https://studio.example' }).isProd, true);
+  // Private addresses do not bypass production HTTPS requirements.
+  assert.throws(() => parseEnvironment({ NODE_ENV: 'production', FRONTEND_URL: 'http://192.168.1.20:3100' }));
+  assert.equal(parseEnvironment({ NODE_ENV: 'production', FRONTEND_URL: 'https://studio.example' }).secureCookies, true);
 });
 
 async function httpFixture(t: TestContext) {
@@ -128,6 +131,25 @@ async function httpFixture(t: TestContext) {
   const { data } = await csrfResponse.json() as { data: { csrfToken: string } };
   return { base, csrf: data.csrfToken, cookie: 'csrf_token=' + data.csrfToken };
 }
+test('development sharing allows local and tunnel writes while production remains restricted', async t => {
+  const publicOrigin = 'https://studio-test.trycloudflare.com';
+  const development = parseEnvironment({ NODE_ENV: 'development', FRONTEND_URL: publicOrigin });
+  assert.deepEqual(parseEnvironment({ NODE_ENV: 'production', FRONTEND_URL: publicOrigin }).allowedOrigins, [publicOrigin]);
+  const previous = env.allowedOrigins;
+  env.allowedOrigins = development.allowedOrigins;
+  t.after(() => { env.allowedOrigins = previous; });
+  const { base, csrf, cookie } = await httpFixture(t);
+  for (const origin of [publicOrigin, 'http://localhost:3000', 'http://127.0.0.1:3000']) {
+    const response = await fetch(base + '/auth/logout', { method: 'POST', headers: { origin, cookie, 'x-csrf-token': csrf } });
+    assert.equal(response.status, 401, origin + ' must reach authentication');
+    assert.equal(response.headers.get('access-control-allow-origin'), origin);
+  }
+  for (const origin of ['https://attacker.example', 'http://localhost:3001', 'http://localhost.attacker.example:3000']) {
+    const response = await fetch(base + '/auth/logout', { method: 'POST', headers: { origin, cookie, 'x-csrf-token': csrf } });
+    assert.equal(response.status, 403);
+    assert.equal(response.headers.get('access-control-allow-origin'), null);
+  }
+});
 test('HTTP rejects unsafe requests without CSRF and accepts only matching tokens and origins', async t => {
   const { base, csrf, cookie } = await httpFixture(t);
   let response = await fetch(base + '/auth/login', { method: 'POST' });
@@ -169,6 +191,19 @@ test('HTTP login throttling persists atomically and returns Retry-After', async 
   assert.equal(response.status, 429);
   assert(Number(response.headers.get('retry-after')) > 0);
 });
+
+test('production closes registration while preserving existing-account login', async t => {
+  assert.equal(parseEnvironment({ NODE_ENV: 'production', FRONTEND_URL: 'https://studio.example' }).allowRegistration, false);
+  assert.equal(parseEnvironment({ NODE_ENV: 'development' }).allowRegistration, true);
+  const previous = env.allowRegistration; env.allowRegistration = false;
+  t.after(() => { env.allowRegistration = previous; });
+  const { base, csrf, cookie } = await httpFixture(t);
+  const register = t.mock.method(authService, 'register', async () => { throw new Error('Must not create public accounts'); });
+  const response = await fetch(base + '/auth/register', { method: 'POST', headers: { cookie, 'x-csrf-token': csrf, 'content-type': 'application/json' }, body: '{}' });
+  assert.equal(response.status, 403); assert.equal(register.mock.callCount(), 0);
+  const csrfResponse = await fetch(base + '/auth/csrf', { headers: { cookie } });
+  assert.equal(csrfResponse.status, 200);
+});
 test('HTTP CSRF requests from other tabs reuse the cookie and preserve in-flight write tokens', async t => {
   const { base, csrf, cookie } = await httpFixture(t);
   const responses = await Promise.all([fetch(base + '/auth/csrf', { headers: { cookie } }), fetch(base + '/auth/csrf', { headers: { cookie } })]);
@@ -202,6 +237,9 @@ test('Gemini sends key in header, uses configured model and validates structured
     assert(!String(url).includes('test-key'));
     assert(String(url).includes('test-model:generateContent'));
     assert.equal((init!.headers as Record<string, string>)['x-goog-api-key'], 'test-key');
+    const payload = JSON.parse(init!.body as string);
+    assert.equal(payload.generationConfig.responseMimeType, 'application/json');
+    assert.equal(payload.generationConfig.responseSchema.properties.narration.type, 'STRING');
     assert(init!.signal);
     return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ narration: 'Updated narration' }) }] } }] }));
   });
@@ -209,11 +247,66 @@ test('Gemini sends key in header, uses configured model and validates structured
   assert.equal(result.output?.narration, 'Updated narration');
   assert.equal(result.estimatedCost, undefined);
 });
+test('Gemini model choices preserve explicit routing, deduplicate defaults and record the selected model', async t => {
+  const previous = { key: env.GEMINI_API_KEY, model: env.GEMINI_MODEL, alternatives: env.GEMINI_ALTERNATE_MODELS };
+  env.GEMINI_API_KEY = 'test-key'; env.GEMINI_MODEL = 'primary'; env.GEMINI_ALTERNATE_MODELS = 'primary,alternate,alternate';
+  t.after(() => { env.GEMINI_API_KEY = previous.key; env.GEMINI_MODEL = previous.model; env.GEMINI_ALTERNATE_MODELS = previous.alternatives; });
+  const providers = configuredGeminiProviders();
+  assert.deepEqual(providers.map(provider => provider.metadata.id), ['gemini', 'gemini:alternate']);
+  const attempts: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (url: string | URL | Request) => {
+    attempts.push(String(url));
+    return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{"narration":"Updated"}' }] } }] }));
+  });
+  const recorded: string[] = [];
+  const manager = new AIProviderManager(providers, async event => { recorded.push(event.response?.model || 'failed'); });
+  const result = await manager.execute({ ...request, input: { task: 'scene-rewrite' }, options: { providerId: 'gemini:alternate' } });
+  assert.equal(result.providerId, 'gemini:alternate'); assert.equal(result.model, 'alternate');
+  assert.match(attempts[0], /alternate:generateContent$/); assert.deepEqual(recorded, ['alternate']);
+  t.mock.method(globalThis, 'fetch', async () => { attempts.push('failed'); return new Response('', { status: 503 }); });
+  await assert.rejects(manager.execute({ ...request, options: { providerId: 'gemini:alternate' } }), (error: unknown) => error instanceof AppError && error.code === 'PROVIDER_UNAVAILABLE');
+  assert.equal(attempts.length, 2, 'Unavailable explicit models must not cause another model call');
+});
+
+test('Gemini enforces the script response schema and exposes safe validation field paths', async t => {
+  const previous = { key: env.GEMINI_API_KEY, model: env.GEMINI_MODEL };
+  env.GEMINI_API_KEY = 'private-test-key'; env.GEMINI_MODEL = 'test-model';
+  t.after(() => { env.GEMINI_API_KEY = previous.key; env.GEMINI_MODEL = previous.model; });
+  const valid = { title: 'Waterfalls', sections: [{ sectionId: 'intro', heading: 'Formation', narration: 'Water flows over cliffs.', estimatedDuration: 10, order: 1, visualSuggestion: 'A river and cliff.' }] };
+  let output: unknown = valid;
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (_url: unknown, init?: RequestInit) => {
+    calls++;
+    const schema = JSON.parse(init!.body as string).generationConfig.responseSchema;
+    assert.deepEqual(schema.required, ['title', 'sections']);
+    assert(schema.properties.sections.items.required.includes('narration'));
+    assert.equal(schema.properties.sections.items.properties.estimatedDuration.type, 'NUMBER');
+    return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(output) }] } }] }));
+  });
+  assert.equal((await new GeminiProvider().execute(request)).output?.title, 'Waterfalls');
+  for (const sections of [
+    [{ ...valid.sections[0], narration: undefined }],
+    [{ ...valid.sections[0], estimatedDuration: '10 seconds' }],
+    [{ ...valid.sections[0], order: 0 }],
+    [valid.sections[0], { ...valid.sections[0], order: 2 }],
+    [{ ...valid.sections[0], estimatedDuration: 400 }, { ...valid.sections[0], sectionId: 'end', order: 2, estimatedDuration: 400 }],
+  ]) {
+    output = { ...valid, title: 'private-test-key', sections };
+    await assert.rejects(new GeminiProvider().execute(request), (error: unknown) => {
+      assert(error instanceof AppError); assert.equal(error.code, 'PROVIDER_INVALID_RESPONSE');
+      assert.match(error.message, /sections/);
+      assert(!JSON.stringify({ message: error.message, details: error.details }).includes('private-test-key'));
+      return true;
+    });
+  }
+  assert.equal(calls, 6, 'Invalid responses must not trigger automatic generation retries');
+});
+
 test('Gemini maps credential, rate limit, timeout and invalid JSON errors without leaking secrets', async t => {
   const previous = { key: env.GEMINI_API_KEY, model: env.GEMINI_MODEL };
   env.GEMINI_API_KEY = 'test-secret'; env.GEMINI_MODEL = 'test-model';
   t.after(() => { env.GEMINI_API_KEY = previous.key; env.GEMINI_MODEL = previous.model; });
-  for (const [status, code] of [[401, 'PROVIDER_AUTHENTICATION_FAILED'], [429, 'PROVIDER_RATE_LIMITED'], [500, 'PROVIDER_UNAVAILABLE']] as const) {
+  for (const [status, code] of [[400, 'PROVIDER_INVALID_RESPONSE'], [401, 'PROVIDER_AUTHENTICATION_FAILED'], [404, 'PROVIDER_UNAVAILABLE'], [429, 'PROVIDER_RATE_LIMITED'], [500, 'PROVIDER_UNAVAILABLE']] as const) {
     t.mock.method(globalThis, 'fetch', async () => new Response('test-secret', { status }));
     await assert.rejects(new GeminiProvider().execute(request), (e: unknown) => e instanceof AppError && e.code === code && !e.message.includes('test-secret'));
   }

@@ -15,6 +15,7 @@ router.use(requireAuth);
 router.get('/projects/:projectId/scenes', sceneController.list);
 router.get('/scenes/:sceneId', sceneController.get);
 router.patch('/scenes/:sceneId', validate(z.object({ params: z.object({ sceneId: objectId }), body: sceneUpdateSchema })), sceneController.update);
+router.delete('/scenes/:sceneId', validate(z.object({ params: z.object({ sceneId: objectId }) })), sceneController.delete);
 router.post('/scenes/:sceneId/regenerate', validate(z.object({ params: z.object({ sceneId: objectId }), body: z.object({ instructions: z.object({ narration: z.string().trim().min(1).max(2000).optional(), visual: z.string().trim().min(1).max(2000).optional(), providerId: z.string().max(100).optional() }).strict().refine(v => Boolean(v.narration || v.visual), 'Provide rewrite instructions') }).strict() })), rateLimit('generation', 20, 60 * 60 * 1000, true), sceneController.regenerate);
 
 export default router;

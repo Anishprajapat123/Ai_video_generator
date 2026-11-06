@@ -1,6 +1,8 @@
 # AI Video Studio
 ## API Provider Integration Specification — Version 1.0
 
+> Current implementation note (4 November 2026): this remains the original provider plan. The user-approved development default is now Remotion animated explainers with local narration; Flow/LTX footage is optional. Remotion composition is not an AI-provider request. Current integration details and ten-second timing behavior are in `docs/remotion-explainers.md` and `PROJECT_STATUS.md`.
+
 **Document status:** Initial integration specification  
 **Version:** 1.0  
 **Last reviewed:** 2 November 2026  

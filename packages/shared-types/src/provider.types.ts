@@ -29,6 +29,7 @@ export interface ProviderRequest {
 }
 
 export interface ProviderResponse {
+  collaboration?: { stages: { role: string; providerId: string; model?: string }[]; revised: boolean; summary: string };
   providerId: string;
   model?: string;
   status: 'completed' | 'processing';
@@ -39,6 +40,7 @@ export interface ProviderResponse {
     outputTokens?: number;
     characters?: number;
     durationSeconds?: number;
+    credits?: number;
   };
   estimatedCost?: number;
 }

@@ -1,6 +1,8 @@
 # AI Video Studio
 ## UI/UX Design Specification — Version 1.1
 
+> Implemented scene editing (4 November 2026): the existing scene-media page contains live Remotion preview and compact Visual, Narration and Captions sections. Save/discard and undo/redo work in place; no additional editor screen is required. Provider selection is separate from rebuilding, and unsaved edits block generation/export. Scene duration/order/transitions remain in storyboard review. See `docs/remotion-explainers.md` for the current control list.
+
 **Document status:** Revised design specification  
 **Version:** 1.1  
 **Design direction:** Minimalist, premium, modern and sophisticated  

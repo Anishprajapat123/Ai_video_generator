@@ -3,6 +3,7 @@ import { createSession, sessionLifetimeMs } from './session.service.js';
 import { SessionModel } from '../../database/models/Session.model.js';
 import { authService } from './auth.service.js';
 import { sendCreated, sendSuccess } from '../../common/utils/response.js';
+import { env } from '../../config/env.js';
 
 export class AuthController {
   async register(req: Request, res: Response, next: NextFunction) {
@@ -13,7 +14,7 @@ export class AuthController {
       const token = await createSession(result.user.id);
       res.cookie('auth_token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: env.secureCookies,
         sameSite: 'lax',
         maxAge: sessionLifetimeMs,
         path: '/api/v1',
@@ -32,7 +33,7 @@ export class AuthController {
 
       res.cookie('auth_token', result.token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: env.secureCookies,
         sameSite: 'lax',
         maxAge: sessionLifetimeMs,
         path: '/api/v1',

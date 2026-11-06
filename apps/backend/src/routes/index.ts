@@ -7,6 +7,8 @@ import projectRoutes from '../modules/projects/project.routes.js';
 import scriptRoutes from '../modules/scripts/script.routes.js';
 import storyboardRoutes from '../modules/storyboards/storyboard.routes.js';
 import sceneRoutes from '../modules/scenes/scene.routes.js';
+import mediaRoutes from '../modules/media/media.routes.js';
+import documentRoutes from '../modules/documents/document.routes.js';
 import { providerManager } from '../modules/providers/provider.manager.js';
 import { sendSuccess } from '../common/utils/response.js';
 
@@ -41,6 +43,8 @@ router.use('/projects', projectRoutes);
 router.use('/', scriptRoutes);
 router.use('/', storyboardRoutes);
 router.use('/', sceneRoutes);
+router.use('/', mediaRoutes);
+router.use('/', documentRoutes);
 
 export default router;
 

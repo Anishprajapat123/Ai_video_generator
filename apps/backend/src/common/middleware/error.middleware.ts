@@ -11,8 +11,14 @@ export function errorHandler(
   res: Response,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   next: NextFunction
-): Response {
+): Response | void {
   const reqId = req.id || 'unknown';
+  // A stream or proxy can fail after headers are sent (for example, a client aborting a media download).
+  // Let Express close the connection instead of crashing the server with a second response.
+  if (res.headersSent) {
+    logger.error(`Error after response started [${reqId}]:`, err);
+    return next(err);
+  }
 
   // Handle custom AppError
   if (err instanceof AppError) {
@@ -37,6 +43,8 @@ export function errorHandler(
       path: e.path.join('.'),
       message: e.message,
     }));
+    // Log field names and rule failures (never submitted values) so a rejected form is diagnosable.
+    logger.warn(`Validation failed [${reqId}] ${req.method} ${req.originalUrl}: ${formattedErrors.map(e => `${e.path || 'body'}: ${e.message}`).join('; ')}`);
 
     const response: ApiResponse = {
       success: false,

@@ -3,12 +3,12 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowRight, ChevronDown, Clapperboard, Film, FolderOpen, HelpCircle, LayoutDashboard, Library, LogOut, Search, Settings2, UserRound, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, Clapperboard, Film, LogOut, Search, UserRound } from 'lucide-react';
 import { api, ApiError, type Membership, type Project, type Provider, type Script, type User } from '../lib/api';
 
 type StudioState = {
   user: User | null; memberships: Membership[]; workspaceId: string; projects: Project[]; providers: Provider[];
-  loading: boolean; error: string; selectWorkspace: (id: string) => void;
+  loading: boolean; error: string;
   refresh: () => Promise<void>; refreshProjects: () => Promise<void>; showProject: (project: Project) => void;
   registerLeaveGuard: (guard: () => boolean) => () => void;
 };
@@ -26,11 +26,6 @@ export function Studio({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<Project | null>(null);
-  const [script, setScript] = useState<Script | null>(null);
-  const [detailError, setDetailError] = useState('');
-  const [detailLoading, setDetailLoading] = useState(false);
-  const dialog = useRef<HTMLDialogElement>(null);
   const leaveGuard = useRef<() => boolean>(() => true);
   const registerLeaveGuard = useCallback((guard: () => boolean) => {
     leaveGuard.current = guard;
@@ -63,20 +58,8 @@ export function Studio({ children }: { children: ReactNode }) {
       .catch(e => { if (active) setError(e.message); });
     return () => { active = false; };
   }, [workspaceId]);
-  useEffect(() => {
-    if (!selected) return;
-    const element = dialog.current;
-    if (element && !element.open) element.showModal();
-    return () => { if (element?.open) element.close(); };
-  }, [selected]);
-  async function showProject(project: Project) {
-    if (project.scriptId) { router.push('/scripts/' + project.scriptId); return; }
-    setSelected(project); setScript(null); setDetailError(''); setDetailLoading(Boolean(project.scriptId));
-    if (project.scriptId) {
-      try { setScript((await api<{ script: Script }>('/scripts/' + project.scriptId)).script); }
-      catch (e) { setDetailError(e instanceof Error ? e.message : 'Unable to load script.'); }
-      finally { setDetailLoading(false); }
-    }
+  function showProject(project: Project) {
+    router.push(project.scriptId ? '/scripts/' + project.scriptId : '/create?project=' + project._id);
   }
   async function signOut() {
     if (!leaveGuard.current()) return;
@@ -85,19 +68,14 @@ export function Studio({ children }: { children: ReactNode }) {
   }
   const workspace = memberships.find(m => m.workspace._id === workspaceId)?.workspace;
   const filteredProjects = projects.filter(p => p.title.toLowerCase().includes(search.toLowerCase()));
-  return <StudioContext.Provider value={{ user, memberships, workspaceId, projects: filteredProjects, providers, loading, error, selectWorkspace: setWorkspaceId, refresh, refreshProjects, showProject, registerLeaveGuard }}>
+  return <StudioContext.Provider value={{ user, memberships, workspaceId, projects: filteredProjects, providers, loading, error, refresh, refreshProjects, showProject, registerLeaveGuard }}>
     <a href="#main-content" className="skip-link">Skip to content</a>
     <aside className="sidebar">
       <Link href="/" className="wordmark">AI VIDEO STUDIO</Link>
       <nav className="main-nav" aria-label="Main navigation">
-        <Link href="/" className={pathname === '/' ? 'nav-item active' : 'nav-item'} aria-current={pathname === '/' ? 'page' : undefined}><LayoutDashboard size={19} /><span>Overview</span></Link>
-        <Link href="/#recent-projects" className="nav-item"><Film size={19} /><span>Projects</span></Link>
-        <button className="nav-item" disabled title="Templates are not available yet"><Library size={19} /><span>Templates</span><small>Soon</small></button>
-        <button className="nav-item" disabled title="Media Library is not available yet"><FolderOpen size={19} /><span>Media Library</span><small>Soon</small></button>
+        <Link href="/" className={pathname === '/' ? 'nav-item active' : 'nav-item'} aria-current={pathname === '/' ? 'page' : undefined}><Film size={19} /><span>Projects</span></Link>
       </nav>
       <div className="sidebar-bottom">
-        <button className="nav-item" disabled title="Settings are not available yet"><Settings2 size={19} /><span>Settings</span></button>
-        <button className="nav-item" disabled title="Help is not available yet"><HelpCircle size={19} /><span>Help & Support</span></button>
         <div className="profile"><span className="avatar"><UserRound size={17} /></span><div><strong>{user?.name || 'Your studio'}</strong><small>{workspace ? `${workspace.type === 'personal' ? 'Personal' : 'Team'} workspace` : 'Sign in to continue'}</small></div>{user && <button className="icon-button" onClick={signOut} aria-label="Sign out" title="Sign out"><LogOut size={16} /></button>}</div>
       </div>
     </aside>
@@ -112,12 +90,6 @@ export function Studio({ children }: { children: ReactNode }) {
         {loading ? <div className="state-panel" role="status">Opening your studio…</div> : error ? <div className="state-panel"><p className="error" role="alert">{error}</p><button className="secondary-button" onClick={() => { void refresh(); }}>Try again</button></div> : !user ? <AuthPanel /> : !workspaceId ? <div className="state-panel">No accessible workspace was found.</div> : children}
       </main>
     </div>
-    {selected && <dialog ref={dialog} className="project-dialog" aria-label={selected.title} onCancel={() => setSelected(null)}>
-      <button className="icon-button dialog-close" autoFocus onClick={() => setSelected(null)} aria-label="Close project"><X size={22} /></button>
-      <span className="eyebrow">Project · {statusLabel(selected)}</span><h2>{selected.title}</h2>
-      {detailLoading ? <p role="status">Loading script…</p> : detailError ? <p className="error" role="alert">{detailError}</p> : script ? <ScriptContent script={script} /> : <p>No script has been generated for this project yet.</p>}
-      {!selected.scriptId && <Link className="primary-button" href={`/create?project=${selected._id}`} onClick={() => setSelected(null)}>Continue creating <ArrowRight size={16} /></Link>}
-    </dialog>}
   </StudioContext.Provider>;
 }
 
@@ -130,7 +102,10 @@ function AuthPanel() {
     event.preventDefault(); setPending(true); setError('');
     const form = new FormData(event.currentTarget);
     try {
-      await api(register ? '/auth/register' : '/auth/login', { method: 'POST', body: JSON.stringify({ name: form.get('name'), email: form.get('email'), password: form.get('password') }) });
+      const payload = register
+        ? { name: form.get('name'), email: String(form.get('email') ?? '').trim(), password: form.get('password') }
+        : { email: String(form.get('email') ?? '').trim(), password: form.get('password') };
+      await api(register ? '/auth/register' : '/auth/login', { method: 'POST', body: JSON.stringify(payload) });
       await refresh();
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to sign in.'); }
     finally { setPending(false); }

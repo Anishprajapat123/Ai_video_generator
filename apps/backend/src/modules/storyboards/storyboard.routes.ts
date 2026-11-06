@@ -15,6 +15,7 @@ const generateStoryboardSchema = z.object({
   }),
   body: z.object({
     scriptId: objectId,
+    reuseExisting: z.boolean().optional(),
   }),
 });
 
@@ -22,7 +23,10 @@ router.use(requireAuth);
 
 router.post('/projects/:projectId/storyboards/generate', validate(generateStoryboardSchema), storyboardController.generate);
 router.get('/storyboards/:storyboardId', storyboardController.get);
-router.post('/storyboards/:storyboardId/approve', storyboardController.approve);
+router.post('/storyboards/:storyboardId/approve', validate(z.object({
+  params: z.object({ storyboardId: objectId }),
+  body: z.object({ expectedRevision: z.number().int().nonnegative().optional() }).default({}),
+})), storyboardController.approve);
 
 export default router;
 

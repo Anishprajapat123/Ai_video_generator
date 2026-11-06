@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, ChevronDown, ChevronRight, FileText, PenLine } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronRight, FileUp, Info, NotebookPen } from 'lucide-react';
 import { ScriptContent, useStudio } from '../../components/studio';
 import { api, type Project, type Script } from '../../lib/api';
 import { creationStorage, emptyCreationDraft, persistCreationDraft, restoreCreationDraft, type CreationDraft } from '../../lib/creation-draft';
+import { PdfSourceInput } from '../../components/pdf-source-input';
 
 type Draft = CreationDraft;
 const defaults = emptyCreationDraft;
@@ -23,9 +24,12 @@ export default function CreateVideo() {
   const [project, setProject] = useState<Project | null>(null);
   const [script, setScript] = useState<Script | null>(null);
   const [pending, setPending] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
   const [restoring, setRestoring] = useState(true);
   const [loadedKey, setLoadedKey] = useState('');
+  const [intake, setIntake] = useState<'prompt' | 'document'>('prompt');
+  const documentDock = useRef<HTMLDivElement>(null);
   const activeRequest = useRef(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const storageKey = `studio:create:${user?._id}:${workspaceId}`;
@@ -55,14 +59,14 @@ export default function CreateVideo() {
   function change(key: keyof Draft, value: string) { setDraft(current => ({ ...current, [key]: value })); }
   async function generate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (activeRequest.current) return;
+    if (activeRequest.current || importing) return;
     if (!providerReady) { setError('Select an enabled text provider in Advanced settings before generating.'); return; }
     activeRequest.current = true; setPending(true); setError('');
     try {
       const settings = { duration: Number(draft.duration), aspectRatio: draft.aspectRatio, language: draft.language, style: draft.style };
       let current = project;
       if (!current) {
-        current = (await api<{ project: Project }>(`/workspaces/${workspaceId}/projects`, { method: 'POST', body: JSON.stringify({ title: draft.title.trim(), creationType: 'prompt', settings }) })).project;
+        current = (await api<{ project: Project }>(`/workspaces/${workspaceId}/projects`, { method: 'POST', body: JSON.stringify({ title: draft.title.trim(), creationType: draft.sourceName ? 'document' : 'prompt', settings }) })).project;
         setProject(current);
         try { sessionStorage.setItem(storageKey, JSON.stringify({ draft, projectId: current._id })); } catch { /* Keep the created project in React state. */ }
       } else {
@@ -79,23 +83,32 @@ export default function CreateVideo() {
   }
   return <>
     <nav className="breadcrumbs" aria-label="Breadcrumb"><Link href="/">Overview</Link><span>/</span><span aria-current="page">Create video</span></nav>
-    <section className="create-heading"><span className="eyebrow">Production workspace</span><h1>Bring your idea to life.</h1><p>Describe your video. Start with a script you can review and refine.</p></section>
-    <div className="method-tabs" aria-label="Creation method"><span className="selected-tab"><PenLine size={18} />Start with a prompt</span><button disabled title="Script import is not available yet"><FileText size={18} />Use a script <small>Soon</small></button></div>
+    <section className="create-heading"><span className="eyebrow">Production workspace · Script engine</span><h1>Bring your idea to life.</h1><p>Describe your narrative concept or attach research to generate an editable script, ready for your review.</p></section>
+    <div className="create-intake-toolbar">
+      <div className="create-intake-modes" role="group" aria-label="Starting source">
+        <button type="button" aria-pressed={intake === 'prompt'} disabled={pending || restoring || !canEdit || Boolean(script)} onClick={() => { setIntake('prompt'); textarea.current?.focus(); }}><NotebookPen size={16} />Idea &amp; Prompt</button>
+        <button type="button" aria-pressed={intake === 'document'} disabled={pending || restoring || !canEdit || Boolean(script)} onClick={() => { setIntake('document'); documentDock.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); documentDock.current?.querySelector('button')?.focus(); }}><FileUp size={16} />Document Intake</button>
+      </div>
+      <span className="create-draft-status"><span className="dot" />{restoring ? 'Opening draft' : pending ? 'Generating script' : 'Draft in this tab'}</span>
+    </div>
     <form onSubmit={generate} className="creation-form" aria-busy={pending || restoring}>
       <fieldset disabled={pending || restoring || !canEdit || Boolean(script)}>
         <label className="field-label" htmlFor="project-title">Project name</label><input id="project-title" className="project-name-input" value={draft.title} onChange={e => change('title', e.target.value)} placeholder="Give your video a name" required maxLength={300} />
-        <div className="idea-label"><label className="field-label" htmlFor="video-idea">Video idea</label><small>Tell us the topic and who it’s for</small></div>
+        <div ref={documentDock}><PdfSourceInput key={storageKey} workspaceId={workspaceId} onImport={(text, name) => setDraft(current => ({ ...current, prompt: text, sourceName: name }))} onBusy={setImporting} /></div>
+        {draft.sourceName && <p className="media-hint">Source document: {draft.sourceName}</p>}
+        <div className="idea-label"><label className="field-label" htmlFor="video-idea">Video synopsis &amp; key points</label><small>What should your audience understand?</small></div>
         <textarea ref={textarea} id="video-idea" value={draft.prompt} onChange={e => change('prompt', e.target.value)} placeholder="What should your video explain? Tell us the topic, audience and key points." required minLength={5} maxLength={10000} />
-        <div className="prompt-examples"><span>Try starting with:</span>{examples.map(([label, prompt]) => <button type="button" className="example-chip" key={label} onClick={() => { change('prompt', prompt); textarea.current?.focus(); }}>{label}</button>)}</div>
-        <div className="preferences-heading"><span className="field-label">Video preferences</span><span /></div>
+        <div className="create-prompt-count">{draft.prompt.length.toLocaleString()} / 10,000 characters</div>
+        <div className="prompt-examples"><span>Try a starting point:</span>{examples.map(([label, prompt]) => <button type="button" className="example-chip" key={label} onClick={() => { change('prompt', prompt); textarea.current?.focus(); }}>{label}</button>)}</div>
+        <div className="preferences-heading"><span className="field-label">Production parameters</span></div>
         <div className="preferences-grid">
           <Select label="Target duration" value={draft.duration} onChange={value => change('duration', value)} options={[["30", "30 seconds"], ["60", "60 seconds"], ["120", "2 minutes"], ["300", "5 minutes"]]} />
           <Select label="Aspect ratio" value={draft.aspectRatio} onChange={value => change('aspectRatio', value)} options={[["16:9", "16:9 · Landscape"], ["9:16", "9:16 · Portrait"], ["1:1", "1:1 · Square"], ["4:5", "4:5 · Portrait"]]} />
           <Select label="Language" value={draft.language} onChange={value => change('language', value)} options={[["en", "English"], ["hi", "Hindi"], ["te", "Telugu"], ["ta", "Tamil"], ["kn", "Kannada"]]} />
           <Select label="Visual style" value={draft.style} onChange={value => change('style', value)} options={[["animated-explainer", "Animated explainer"], ["minimal", "Minimal"], ["educational", "Educational"], ["corporate", "Corporate"]]} />
         </div>
-        <details className="advanced-settings"><summary><ChevronRight size={17} />Advanced settings</summary><label>Text provider<select value={draft.providerId} onChange={e => change('providerId', e.target.value)}><option value="">Configured default</option>{available.map(p => <option key={p.id} value={p.id}>{p.name}{p.id === 'mock-ai' ? ' (test content)' : ''}</option>)}</select></label><p>Provider selection applies to script generation.</p></details>
-        <div className="generate-row"><button className="primary-button" disabled={!providerReady} type="submit">{pending ? 'Generating script…' : 'Generate script'}<ArrowRight size={19} /></button><p>You’ll review and approve the script before creating scenes.</p></div>
+        <details className="advanced-settings"><summary><ChevronRight size={17} />Advanced settings</summary><label>Text model / provider<select value={draft.providerId} onChange={e => change('providerId', e.target.value)}><option value="">Configured default</option>{available.map(p => <option key={p.id} value={p.id}>{p.name}{p.id === 'mock-ai' ? ' (test content)' : ''}</option>)}</select></label><p>Selection applies to script generation. If a model is unavailable, choose another here and retry. Models never switch automatically.</p></details>
+        <div className="generate-row"><button className="primary-button" disabled={!providerReady || importing} type="submit">{pending ? 'Generating script…' : 'Generate script'}<ArrowRight size={19} /></button><p><Info size={18} /><span>You review, refine and approve the script before creating scenes.</span></p></div>
       </fieldset>
       {restoring && <p role="status">Opening your draft…</p>}
       {!canEdit && <p role="status">You have view-only access to this workspace.</p>}

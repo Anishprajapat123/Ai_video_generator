@@ -21,6 +21,8 @@ export interface IGenerationJobDocument extends Document {
   startedAt?: Date;
   completedAt?: Date;
   createdAt: Date;
+  resourceKey?: string;
+  expiresAt?: Date;
 }
 
 const GenerationJobSchema = new Schema<IGenerationJobDocument>(
@@ -49,6 +51,8 @@ const GenerationJobSchema = new Schema<IGenerationJobDocument>(
     error: { type: String, default: null },
     startedAt: { type: Date },
     completedAt: { type: Date },
+    resourceKey: { type: String },
+    expiresAt: { type: Date },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
@@ -56,6 +60,7 @@ const GenerationJobSchema = new Schema<IGenerationJobDocument>(
 );
 
 GenerationJobSchema.index({ workspaceId: 1, status: 1, createdAt: -1 });
+GenerationJobSchema.index({ resourceKey: 1 }, { unique: true, partialFilterExpression: { resourceKey: { $type: 'string' } } });
 
 export const GenerationJobModel = mongoose.model<IGenerationJobDocument>('GenerationJob', GenerationJobSchema);
 

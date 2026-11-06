@@ -1,5 +1,9 @@
 # Approved screen references
 
+## Storyboard Review
+
+Approved and implemented from Stitch screen `0301a35848664bc5a31e36269e18d182` in project `4092178879820767685`. Implementation: `apps/frontend/components/storyboard-review.tsx` and `/storyboards/:storyboardId`. The approved two-column scene list/editor uses neutral placeholders, real scene fields, labeled durations and separate scene-save/storyboard-approval actions. Media generation remains a later step.
+
 ## Script Review
 
 Approved and implemented on 2 November 2026. Stitch screen `baae0daf8a4649728db97c496fd2761e` in project `4092178879820767685` is the design reference. Implementation: `apps/frontend/components/script-review.tsx` and route `/scripts/:scriptId`.

@@ -1,0 +1,45 @@
+/* Approved Stitch Create Video (Refined), scoped to the production workspace. */
+.create-content{max-width:960px;padding-top:32px}
+.create-content .breadcrumbs{font-size:11px;text-transform:uppercase;letter-spacing:.055em;margin-bottom:14px}
+.create-content .create-heading .eyebrow{font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.1em}
+.create-content .create-heading h1{font-size:48px;font-weight:400;letter-spacing:-.035em;margin:8px 0 12px}
+.create-content .create-heading p{font-size:16px;line-height:1.65;color:#464741;max-width:680px}
+.create-intake-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:24px 0 32px}
+.create-intake-modes{display:inline-flex;padding:4px;border-radius:8px;background:#efeeea;gap:2px}
+.create-intake-modes button{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:5px;padding:8px 13px;background:transparent;color:#464741;font-size:13px;min-height:36px}
+.create-intake-modes button[aria-pressed=true]{background:#fff;color:#11120e;box-shadow:0 1px 3px #2425200a;font-weight:550}
+.create-draft-status{display:inline-flex;align-items:center;gap:7px;padding:4px 10px;background:#e9e8e4;border-radius:999px;color:#5c604c;font-size:11px;white-space:nowrap}
+.create-draft-status .dot{width:6px;height:6px}
+.create-content .creation-form{padding:32px;border-radius:12px;border:1px solid #f0efea;box-shadow:0 1px 3px #24252005}
+.create-content .field-label{font-size:11px;letter-spacing:.055em;color:#777870;font-weight:600}
+.create-content .project-name-input{padding:12px 16px;background:#f5f4f0;margin:8px 0 28px;font-size:18px;font-weight:550;border:1px solid transparent}
+.create-content .project-name-input:focus,.create-content .creation-form textarea:focus{background:white;border-color:#777b65}
+.create-content .pdf-source-input{margin:0 0 28px;padding:0;border:0}
+.source-dock{display:flex;align-items:center;gap:12px;background:#f5f4f0;padding:16px;border-radius:8px}
+.source-dock-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:36px;height:36px;border-radius:5px;background:#fff;color:#5c604c;box-shadow:0 1px 2px #24252008}
+.source-dock-copy{flex:1;min-width:0}
+.create-content .source-dock .field-label{font-size:13px;color:#242520;font-weight:500;letter-spacing:0;text-transform:none}
+.source-dock .field-label span{display:inline-block;font-size:10px;margin-left:6px;padding:2px 6px;border-radius:4px;background:#e9e8e4;color:#64665b}
+.create-content .source-dock .media-hint{font-size:11px;margin:3px 0 0;line-height:1.5}
+.source-dock .secondary-button{border-color:transparent;font-size:12px;min-height:34px;padding:7px 12px;flex-shrink:0;box-shadow:0 1px 2px #24252008}
+.create-content .pdf-source-input>[role=status]{font-size:12px;margin-top:10px;overflow-wrap:anywhere}
+.create-content .idea-label small{font-size:11px;color:#777870}
+.create-content .creation-form textarea{padding:16px;background:#f5f4f0;border:1px solid transparent;min-height:160px;margin:10px 0 0;line-height:1.6}
+.create-prompt-count{text-align:right;font-size:11px;color:#777870;font-variant-numeric:tabular-nums;margin:5px 2px 12px}
+.create-content .prompt-examples{margin-bottom:30px;gap:7px}
+.create-content .example-chip{background:#efeeea;padding:4px 10px}
+.create-content .preferences-heading{margin-bottom:12px}
+.create-content .preferences-grid{gap:12px;grid-template-columns:repeat(4,minmax(0,1fr))}
+.create-content .preference{background:#f5f4f0;border-radius:5px;padding:12px;gap:6px;color:#777870;font-size:11px;min-width:0}
+.create-content .select-wrapper select{padding:0 20px 0 0;background:transparent;border:0;border-radius:0;font-size:12px;font-weight:500;min-height:22px;text-overflow:ellipsis}
+.create-content .select-wrapper svg{top:3px;right:0}
+.create-content .advanced-settings{padding:12px;border-radius:8px;background:#f5f4f0;margin-top:28px}
+.create-content .advanced-settings summary{width:100%;font-size:12px;color:#464741}
+.create-content .advanced-settings label{max-width:100%}
+.create-content .advanced-settings select{background:white;width:100%;min-width:0}
+.create-content .generate-row{justify-content:space-between;gap:24px;margin-top:32px}
+.create-content .generate-row p{display:flex;align-items:center;gap:9px;font-size:12px;line-height:1.5;color:#464741;max-width:300px}
+.create-content .generate-row p svg{flex-shrink:0;color:#5c604c}
+.create-content .provider-disclosure{margin:24px 0 0;font-size:11px;line-height:1.6}
+@media(max-width:1100px){.create-content .preferences-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.source-dock{flex-wrap:wrap}.source-dock-copy{flex-basis:calc(100% - 48px)}.source-dock .secondary-button{margin-left:48px}}
+@media(max-width:600px){.create-content .create-heading h1{font-size:34px}.create-content .create-heading p{font-size:14px}.create-intake-toolbar{align-items:flex-start;flex-direction:column;gap:12px;margin-bottom:24px}.create-intake-modes{width:100%}.create-intake-modes button{flex:1;font-size:11px;padding:8px;gap:5px}.create-content .creation-form{padding:22px 16px}.create-content .project-name-input{padding:12px;font-size:16px}.source-dock{padding:12px;gap:10px}.source-dock-copy{flex-basis:calc(100% - 46px)}.source-dock .secondary-button{margin-left:46px}.create-content .source-dock .field-label{font-size:12px}.create-content .creation-form textarea{padding:12px;min-height:180px}.create-content .preferences-grid{gap:10px}.create-content .preference{padding:10px}.create-content .generate-row{gap:16px;align-items:stretch}.create-content .generate-row p{max-width:none}.create-content .create-draft-status{font-size:10px}}

@@ -23,6 +23,7 @@ export interface IScriptDocument extends Document {
   estimatedDuration: number;
   status: 'draft' | 'approved' | 'superseded';
   providerMetadata?: {
+    collaboration?: import('@ai-video-studio/shared-types').ProviderResponse['collaboration'];
     providerId: string;
     model: string;
   };
@@ -58,6 +59,7 @@ const ScriptSchema = new Schema<IScriptDocument>(
     estimatedDuration: { type: Number, default: 0 },
     status: { type: String, enum: ['draft', 'approved', 'superseded'], default: 'draft' },
     providerMetadata: {
+      collaboration: Schema.Types.Mixed,
       providerId: { type: String },
       model: { type: String },
     },
